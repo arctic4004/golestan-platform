@@ -1,0 +1,25 @@
+/* assets/css/theme-sapphire.css */
+:root {
+    --accent-color: #4169e1;
+    --accent-hover: #3154b3;
+    --sapphire-gradient: linear-gradient(135deg, #4169e1, #1e90ff);
+}
+
+.gradient-text {
+    background: var(--sapphire-gradient);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+.hero-modern {
+    background: linear-gradient(135deg, #0a0a1a, #1a1a2e);
+}
+
+.cta-section {
+    background: linear-gradient(135deg, #4169e1, #1e90ff);
+}
+
+.logo { color: #4169e1; }
+a { color: #1e90ff; }
+.btn-primary { background: #4169e1; }
+.btn-outline { border-color: #4169e1; color: #4169e1; }

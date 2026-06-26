@@ -1,0 +1,10 @@
+User-agent: *
+Allow: /
+Disallow: /api/
+Disallow: /config/
+Disallow: /includes/
+Disallow: /admin/
+Disallow: /user/dashboard/v2/settings.php
+Disallow: /user/dashboard/v2/profile.php
+
+Sitemap: https://golestanyasuj.ir/sitemap.xml

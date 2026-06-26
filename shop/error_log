@@ -1,0 +1,38 @@
+[09-Jun-2026 15:36:49 Asia/Tehran] PHP Fatal error:  Uncaught Error: Call to a member function fetch() on bool in /home/golestanyasujir/public_html/shop/product.php:6
+Stack trace:
+#0 {main}
+  thrown in /home/golestanyasujir/public_html/shop/product.php on line 6
+[09-Jun-2026 17:05:34 Asia/Tehran] PHP Fatal error:  Uncaught Error: Call to a member function fetchAll() on bool in /home/golestanyasujir/public_html/shop/services.php:11
+Stack trace:
+#0 {main}
+  thrown in /home/golestanyasujir/public_html/shop/services.php on line 11
+[09-Jun-2026 17:05:41 Asia/Tehran] PHP Fatal error:  Uncaught Error: Call to a member function fetchAll() on bool in /home/golestanyasujir/public_html/shop/services.php:11
+Stack trace:
+#0 {main}
+  thrown in /home/golestanyasujir/public_html/shop/services.php on line 11
+[09-Jun-2026 17:06:12 Asia/Tehran] PHP Fatal error:  Uncaught Error: Call to a member function fetchAll() on bool in /home/golestanyasujir/public_html/shop/goods.php:14
+Stack trace:
+#0 {main}
+  thrown in /home/golestanyasujir/public_html/shop/goods.php on line 14
+[09-Jun-2026 17:10:32 Asia/Tehran] PHP Fatal error:  Uncaught Error: Call to a member function fetchAll() on bool in /home/golestanyasujir/public_html/shop/services.php:11
+Stack trace:
+#0 {main}
+  thrown in /home/golestanyasujir/public_html/shop/services.php on line 11
+[09-Jun-2026 17:13:42 Asia/Tehran] PHP Fatal error:  Uncaught Error: Call to a member function fetch() on bool in /home/golestanyasujir/public_html/shop/product.php:8
+Stack trace:
+#0 {main}
+  thrown in /home/golestanyasujir/public_html/shop/product.php on line 8
+[09-Jun-2026 17:23:49 Asia/Tehran] PHP Warning:  Cannot modify header information - headers already sent by (output started at /home/golestanyasujir/public_html/includes/header.php:9) in /home/golestanyasujir/public_html/includes/functions.php on line 38
+[09-Jun-2026 17:23:52 Asia/Tehran] PHP Warning:  Cannot modify header information - headers already sent by (output started at /home/golestanyasujir/public_html/includes/header.php:9) in /home/golestanyasujir/public_html/includes/functions.php on line 38
+[09-Jun-2026 17:30:37 Asia/Tehran] PHP Fatal error:  Uncaught Error: Call to a member function fetch() on bool in /home/golestanyasujir/public_html/shop/checkout.php:14
+Stack trace:
+#0 {main}
+  thrown in /home/golestanyasujir/public_html/shop/checkout.php on line 14
+[10-Jun-2026 11:44:11 Asia/Tehran] PHP Fatal error:  Uncaught Error: Call to a member function fetchAll() on bool in /home/golestanyasujir/public_html/shop/orders.php:8
+Stack trace:
+#0 {main}
+  thrown in /home/golestanyasujir/public_html/shop/orders.php on line 8
+[10-Jun-2026 11:44:14 Asia/Tehran] PHP Fatal error:  Uncaught Error: Call to a member function fetchAll() on bool in /home/golestanyasujir/public_html/shop/orders.php:8
+Stack trace:
+#0 {main}
+  thrown in /home/golestanyasujir/public_html/shop/orders.php on line 8
