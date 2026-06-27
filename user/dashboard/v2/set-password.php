@@ -1,91 +1,125 @@
 <?php
 // user/dashboard/v2/set-password.php
 session_start();
-require_once $_SERVER['DOCUMENT_ROOT'] . '/config/constants.php';
-require_once $_SERVER['DOCUMENT_ROOT'] . '/config/database.php';
-require_once $_SERVER['DOCUMENT_ROOT'] . '/includes/functions.php';
+require_once __DIR__ . '/../../config/constants.php';
+require_once __DIR__ . '/../../config/database.php';
+require_once __DIR__ . '/../../includes/auth.php';
 
-// فقط کاربران لاگین‌شده میتونن بیان
-if (!isLoggedIn()) {
-    redirect('/login.php');
+$auth = new Auth();
+
+if (!$auth->isLoggedIn()) {
+    header('Location: /login.php');
+    exit;
 }
 
+$user = $auth->getUser();
+$has_password = !empty($user['password_hash']);
+$success = false;
 $error = '';
-$success = '';
-
-// چک کن این کاربر واقعاً نیاز به رمز داره (با OAuth اومده)
-$user = getUserData($_SESSION['user_id']);
-$needs_password = (strpos($user['phone'], 'GO') === 0 || strpos($user['phone'], 'GH') === 0);
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $password = $_POST['password'] ?? '';
-    $confirm = $_POST['confirm_password'] ?? '';
-    
-    if (strlen($password) < 6) {
-        $error = 'رمز عبور باید حداقل ۶ کاراکتر باشد.';
+    $confirm = $_POST['confirm'] ?? '';
+
+    if (strlen($password) < 8) {
+        $error = 'رمز عبور باید حداقل ۸ کاراکتر باشد.';
     } elseif ($password !== $confirm) {
         $error = 'رمز عبور و تکرار آن مطابقت ندارند.';
     } else {
-        $hash = password_hash($password, PASSWORD_BCRYPT, ['cost' => 12]);
         $db = (new Database())->getConnection();
-        $db->prepare("UPDATE users SET password_hash = ? WHERE id = ?")->execute([$hash, $_SESSION['user_id']]);
-        
-        $success = '✅ رمز عبور با موفقیت تنظیم شد!';
-        logActivity($_SESSION['user_id'], 'password_set', 'تنظیم رمز عبور جدید (OAuth)');
-        
-        // ریدایرکت بعد از ۲ ثانیه
-        header("Refresh: 2; URL=/user/dashboard/v2/");
+        $hash = password_hash($password, PASSWORD_BCRYPT);
+
+        $stmt = $db->prepare("UPDATE users SET password_hash = ? WHERE id = ?");
+        $stmt->execute([$hash, $_SESSION['user_id']]);
+
+        $success = true;
     }
 }
 
+// چک کن آیا نیاز به تنظیم رمز داره
+if ($has_password && !$success) {
+    header('Location: /user/dashboard/v2/');
+    exit;
+}
+
 $page_title = 'تنظیم رمز عبور | ' . SITE_NAME;
-require_once $_SERVER['DOCUMENT_ROOT'] . '/includes/header.php';
+require_once __DIR__ . '/../../includes/header.php';
 ?>
 
 <style>
-.set-pass-page { max-width: 450px; margin: 100px auto 40px; }
+    .set-password-container {
+        max-width: 450px;
+        margin: 50px auto;
+        padding: 30px;
+        background: var(--card-bg);
+        border-radius: 16px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+    }
+
+    .set-password-container h2 {
+        text-align: center;
+        margin-bottom: 10px;
+        color: var(--text);
+    }
+
+    .set-password-container .subtitle {
+        text-align: center;
+        color: var(--text-secondary);
+        margin-bottom: 25px;
+        font-size: 14px;
+    }
+
+    .alert {
+        padding: 12px 16px;
+        border-radius: 8px;
+        margin-bottom: 20px;
+        text-align: center;
+    }
+
+    .alert-success {
+        background: #d4edda;
+        color: #155724;
+    }
+
+    .alert-error {
+        background: #f8d7da;
+        color: #721c24;
+    }
 </style>
 
-<div class="container set-pass-page">
-    <div class="auth-box">
-        <div class="auth-header">
-            <div class="auth-icon"><i class="fas fa-key"></i></div>
-            <h1>🔐 تنظیم رمز عبور</h1>
-            <p style="color:var(--text-secondary);">
-                <?php if ($needs_password): ?>
-                    شما از طریق گوگل/گیت‌هاب وارد شده‌اید. برای ورود با موبایل، یک رمز عبور تنظیم کنید.
-                <?php else: ?>
-                    می‌توانید رمز عبور حساب خود را تغییر دهید.
-                <?php endif; ?>
-            </p>
+<div class="set-password-container">
+    <h2>🔐 تنظیم رمز عبور</h2>
+    <p class="subtitle">
+        شما از طریق گوگل یا گیت‌هاب وارد شده‌اید.<br>
+        برای ورود با شماره موبایل در آینده، لطفاً یک رمز عبور تعیین کنید.
+    </p>
+
+    <?php if ($success): ?>
+        <div class="alert alert-success">
+            ✅ رمز عبور با موفقیت تنظیم شد!<br>
+            <a href="/user/dashboard/v2/">رفتن به داشبورد</a>
         </div>
-        
+    <?php else: ?>
         <?php if ($error): ?>
-            <div class="alert alert-error"><?php echo $error; ?></div>
+            <div class="alert alert-error"><?= $error ?></div>
         <?php endif; ?>
-        
-        <?php if ($success): ?>
-            <div class="alert alert-success"><?php echo $success; ?></div>
-        <?php else: ?>
-            <form method="POST">
-                <div class="form-group">
-                    <label>🔒 رمز عبور جدید</label>
-                    <input type="password" name="password" placeholder="حداقل ۶ کاراکتر" minlength="6" required>
-                </div>
-                <div class="form-group">
-                    <label>🔒 تکرار رمز عبور</label>
-                    <input type="password" name="confirm_password" placeholder="تکرار رمز عبور" required>
-                </div>
-                <button type="submit" class="btn btn-primary btn-block">💾 ذخیره رمز عبور</button>
-            </form>
-        <?php endif; ?>
-        
-        <?php if (!$needs_password && !$success): ?>
-            <p style="margin-top:12px;font-size:0.85rem;color:var(--text-muted);">
-                ⚠️ شما قبلاً رمز عبور دارید. برای تغییر رمز به <a href="/user/dashboard/v2/profile.php">پروفایل</a> بروید.
-            </p>
-        <?php endif; ?>
-    </div>
+
+        <form method="POST">
+            <div class="form-group">
+                <label>🔒 رمز عبور جدید (حداقل ۸ کاراکتر)</label>
+                <input type="password" name="password" class="form-control" required minlength="8">
+            </div>
+            <div class="form-group">
+                <label>🔒 تکرار رمز عبور</label>
+                <input type="password" name="confirm" class="form-control" required minlength="8">
+            </div>
+            <button type="submit" class="btn btn-primary btn-block">ذخیره رمز عبور</button>
+        </form>
+
+        <p style="text-align:center;margin-top:15px;">
+            <a href="/user/dashboard/v2/" style="color:var(--text-secondary);font-size:14px;">بعداً انجام می‌دم</a>
+        </p>
+    <?php endif; ?>
 </div>
 
-<?php require_once $_SERVER['DOCUMENT_ROOT'] . '/includes/footer.php'; ?>
+<?php require_once __DIR__ . '/../../includes/footer.php'; ?>
