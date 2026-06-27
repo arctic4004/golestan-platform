@@ -23,7 +23,6 @@ curl_setopt_array($ch, [
         'grant_type' => 'authorization_code'
     ])
 ]);
-
 $response = curl_exec($ch);
 curl_close($ch);
 $token_data = json_decode($response, true);
@@ -55,30 +54,23 @@ $user = $stmt->fetch();
 
 if ($user) {
     $user_id = $user['id'];
-    $is_new_user = false;
+    $is_new = false;
 } else {
-    // ثبت‌نام با رمز خالی (بعداً باید تنظیم کنه)
     $phone = 'GO' . substr(bin2hex(random_bytes(4)), 0, 9);
-
     $stmt = $db->prepare("INSERT INTO users (phone, email, full_name, password_hash, credits, wallet_balance) VALUES (?, ?, ?, ?, 1000, 0)");
-    $stmt->execute([
-        $phone,
-        $google_user['email'],
-        $google_user['name'],
-        '' // رمز خالی - کاربر باید تنظیم کنه
-    ]);
+    $stmt->execute([$phone, $google_user['email'], $google_user['name'], '']);
     $user_id = $db->lastInsertId();
-    $is_new_user = true;
+    $is_new = true;
 }
 
 // ذخیره OAuth
 $stmt = $db->prepare("INSERT IGNORE INTO oauth_users (user_id, provider, provider_id, email, name, avatar) VALUES (?, 'google', ?, ?, ?, ?)");
 $stmt->execute([$user_id, $google_user['sub'], $google_user['email'], $google_user['name'], $google_user['picture']]);
 
-// گرفتن اطلاعات کامل کاربر
+// اطلاعات کاربر
 $user = getUserData($user_id);
 
-// ست کردن سشن
+// ست سشن
 $_SESSION['user_id'] = $user['id'];
 $_SESSION['full_name'] = $user['full_name'];
 $_SESSION['phone'] = $user['phone'];
@@ -104,10 +96,10 @@ setcookie('golestan_token', $token, [
     'samesite' => 'Lax'
 ]);
 
-logActivity($user_id, 'login', 'ورود با Google OAuth');
+logActivity($user_id, 'login', 'ورود با Google');
 
-// ریدایرکت: کاربر جدید → تنظیم رمز
-if (empty($user['password_hash'])) {
+// ریدایرکت: اگه رمز نداره → تنظیم رمز
+if (empty($user['password_hash']) || password_verify('', $user['password_hash'])) {
     header("Location: /user/dashboard/v2/set-password.php?welcome=1");
 } else {
     header("Location: /user/dashboard/v2/");

@@ -54,16 +54,17 @@ $emails = json_decode(curl_exec($ch), true);
 curl_close($ch);
 
 $primary_email = '';
-foreach ($emails as $email) {
-    if ($email['primary']) {
-        $primary_email = $email['email'];
-        break;
+if (is_array($emails)) {
+    foreach ($emails as $email) {
+        if ($email['primary']) {
+            $primary_email = $email['email'];
+            break;
+        }
     }
 }
 
 $db = (new Database())->getConnection();
 
-// چک وجود کاربر با ایمیل
 if ($primary_email) {
     $stmt = $db->prepare("SELECT * FROM users WHERE email = ?");
     $stmt->execute([$primary_email]);
@@ -72,26 +73,17 @@ if ($primary_email) {
 
 if (isset($user) && $user) {
     $user_id = $user['id'];
-    $is_new_user = false;
 } else {
     $phone = 'GH' . substr(bin2hex(random_bytes(4)), 0, 9);
-
     $stmt = $db->prepare("INSERT INTO users (phone, email, full_name, password_hash, credits, wallet_balance) VALUES (?, ?, ?, ?, 1000, 0)");
-    $stmt->execute([
-        $phone,
-        $primary_email,
-        $github_user['name'] ?? $github_user['login'],
-        '' // رمز خالی
-    ]);
+    $stmt->execute([$phone, $primary_email, $github_user['name'] ?? $github_user['login'], '']);
     $user_id = $db->lastInsertId();
-    $is_new_user = true;
 }
 
 // ذخیره OAuth
 $stmt = $db->prepare("INSERT IGNORE INTO oauth_users (user_id, provider, provider_id, email, name, avatar) VALUES (?, 'github', ?, ?, ?, ?)");
 $stmt->execute([$user_id, $github_user['id'], $primary_email, $github_user['name'] ?? $github_user['login'], $github_user['avatar_url']]);
 
-// اطلاعات کاربر
 $user = getUserData($user_id);
 
 // ست سشن
@@ -122,8 +114,7 @@ setcookie('golestan_token', $token, [
 
 logActivity($user_id, 'login', 'ورود با GitHub');
 
-// ریدایرکت
-if (empty($user['password_hash'])) {
+if (empty($user['password_hash']) || password_verify('', $user['password_hash'])) {
     header("Location: /user/dashboard/v2/set-password.php?welcome=1");
 } else {
     header("Location: /user/dashboard/v2/");
