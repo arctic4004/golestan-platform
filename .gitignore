@@ -1,20 +1,29 @@
+# فایل‌های حساس - هرگز push نشن
 config/database.php
 config/oauth_config.php
-api/chat/error_log
-admin/error_log
-shop/error_log
-error_log
+api/deepseek_config.php
+
+# خطاها و لاگ‌ها
 *.log
-.env
+error_log
+
+# فایل‌های تست
+test/
+
+# فایل‌های موقت و آپلود
 backup.zip
+.DS_Store
+.env
+
+# آپلودهای کاربران
 uploads/*
 !uploads/.gitkeep
-test/
-hello.php
+
+# فایل‌های دیباگ
 debug.php
-login_debug.php
+hello.php
+*_debug.php
 check_user.php
 session_check.php
 test_*.php
 make_icons.php
-
