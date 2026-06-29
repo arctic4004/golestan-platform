@@ -1,5 +1,4 @@
 <?php
-// api/chat/CloudflareAPI.php
 class CloudflareAPI {
     private $api_token;
     private $account_id = '66b43b4fe65858aebd524af96cd93d54';
@@ -7,13 +6,15 @@ class CloudflareAPI {
     
     public function __construct() {
         $this->api_token = $this->getApiToken();
+        if (empty($this->api_token)) {
+            throw new Exception('API Token not configured');
+        }
     }
     
     private function getApiToken() {
         try {
             require_once __DIR__ . '/../../config/database.php';
-            $database = new Database();
-            $db = $database->getConnection();
+            $db = (new Database())->getConnection();
             $stmt = $db->prepare("SELECT setting_value FROM settings WHERE setting_key = ?");
             $stmt->execute(['deepseek_api_key']);
             $result = $stmt->fetch();
@@ -21,36 +22,12 @@ class CloudflareAPI {
                 return $result['setting_value'];
             }
         } catch (Exception $e) {}
-        throw new Exception('API Token not found');
+        
+        return '';
     }
     
     public function sendMessage($message, $history = [], $model = null, $options = []) {
-        $think_mode = $options['think'] ?? false;
-        $search_mode = $options['search'] ?? false;
-        
-        // تاریخ شمسی ساده
-        $gregorian_year = date('Y');
-        $jalali_year = $gregorian_year - 621; // تبدیل تقریبی
-        $today = date('Y/m/d');
-        $jalali_date = ($jalali_year) . date('/m/d');
-        
-        // پرامپت سیستم
-        $system_prompt = "شما دستیار هوش مصنوعی کافی‌نت گلستان در یاسوج هستید. همیشه به فارسی روان، دقیق و کامل پاسخ دهید.
-        
-📅 اطلاعات مهم:
-- تاریخ امروز: {$today} میلادی (حدوداً {$jalali_date} شمسی - سال " . ($jalali_year) . " خورشیدی)
-- زمان فعلی: " . date('H:i') . "
-- شما یک مدل زبانی هستید که دانش شما تا اوایل ۲۰۲۴ میلادی (اواخر ۱۴۰۲ شمسی) به‌روز است.
-- اگر سوال درباره رویدادهای بعد از این تاریخ است، صادقانه بگویید که اطلاعاتتان به‌روز نیست.
-- برای سوالات ریاضی، منطقی و عمومی می‌توانید پاسخ دقیق دهید.";
-        
-        if ($think_mode) {
-            $system_prompt .= "\n\n⚠️ حالت تفکر عمیق فعال است. لطفاً قبل از پاسخ نهایی، فرآیند فکری خود را به صورت گام به گام توضیح دهید. ابتدا تحلیل کنید، سپس استدلال کنید، و در نهایت پاسخ نهایی را ارائه دهید.\n\nفرمت پاسخ:\n💭 **تحلیل:** (تحلیل سوال)\n🧠 **استدلال:** (گام‌های فکری)\n✅ **پاسخ نهایی:** (جواب اصلی)";
-        }
-        
-        if ($search_mode) {
-            $system_prompt .= "\n\n⚠️ حالت جستجو فعال است. لطفاً طوری پاسخ دهید که انگار به اینترنت دسترسی دارید و اطلاعات به‌روز دارید.";
-        }
+        $system_prompt = "شما دستیار هوشمند کافی‌نت گلستان هستید. همیشه به فارسی روان، دقیق و مفید پاسخ دهید. پاسخ‌هایتان را با ایموجی زیباتر کنید. نام کاربر را نمی‌دانید.";
         
         $messages = [['role' => 'system', 'content' => $system_prompt]];
         
@@ -64,12 +41,6 @@ class CloudflareAPI {
         
         $url = "https://api.cloudflare.com/client/v4/accounts/{$this->account_id}/ai/run/{$this->model}";
         
-        $data = [
-            'messages' => $messages,
-            'max_tokens' => $think_mode ? 3000 : 2000,
-            'temperature' => $think_mode ? 0.3 : 0.7
-        ];
-        
         $ch = curl_init($url);
         curl_setopt_array($ch, [
             CURLOPT_RETURNTRANSFER => true,
@@ -78,20 +49,35 @@ class CloudflareAPI {
                 'Authorization: Bearer ' . $this->api_token,
                 'Content-Type: application/json'
             ],
-            CURLOPT_POSTFIELDS => json_encode($data),
-            CURLOPT_TIMEOUT => 40
+            CURLOPT_POSTFIELDS => json_encode([
+                'messages' => $messages,
+                'max_tokens' => 1500,
+                'temperature' => 0.7
+            ]),
+            CURLOPT_TIMEOUT => 60,
+            CURLOPT_SSL_VERIFYPEER => false
         ]);
         
         $response = curl_exec($ch);
         $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $curl_error = curl_error($ch);
         curl_close($ch);
+        
+        if ($curl_error) {
+            throw new Exception('Connection error: ' . $curl_error);
+        }
         
         if ($http_code !== 200) {
             $error = json_decode($response, true);
-            throw new Exception($error['errors'][0]['message'] ?? 'HTTP ' . $http_code);
+            $error_msg = $error['errors'][0]['message'] ?? "HTTP $http_code";
+            throw new Exception($error_msg);
         }
         
         $result = json_decode($response, true);
+        
+        if (!isset($result['result']['response'])) {
+            throw new Exception('Invalid API response');
+        }
         
         return [
             'content' => $result['result']['response'],
