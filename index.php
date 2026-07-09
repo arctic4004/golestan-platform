@@ -1,167 +1,182 @@
 <?php
+session_start();
 require_once __DIR__ . '/config/constants.php';
-$page_title = SITE_NAME . ' | چت هوشمند، ساخت عکس، پروژه‌های گیت‌هاب، فروشگاه و ابزارهای حرفه‌ای';
-$page_description = 'کافی‌نت گلستان یاسوج؛ چت با Llama 4، ساخت عکس با AI، اتصال و تحلیل پروژه‌های گیت‌هاب، فروشگاه خدمات و کالا، ابزارهای ویرایش تصویر، تقویم و مدیریت تسک‌ها — همه رایگان و بدون محدودیت.';
+require_once __DIR__ . '/config/database.php';
+
+// تولید CSRF token
+if (empty($_SESSION['csrf_token'])) {
+    $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+}
+
+function isLoggedInLogin()
+{
+    return isset($_SESSION['user_id']) && !empty($_SESSION['user_id']);
+}
+function sanitizeLogin($data)
+{
+    return htmlspecialchars(strip_tags(trim($data)), ENT_QUOTES, 'UTF-8');
+}
+
+$errors = [];
+$phone = '';
+
+// Rate limiting
+$ip = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
+$attempts_file = sys_get_temp_dir() . '/login_attempts_' . md5($ip);
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    // چک CSRF
+    if (!hash_equals($_SESSION['csrf_token'], $_POST['csrf_token'] ?? '')) {
+        $errors[] = 'خطای امنیتی. لطفاً صفحه را refresh کنید.';
+    } else {
+        // چک rate limit
+        $attempts = @json_decode(file_get_contents($attempts_file), true) ?: ['count' => 0, 'time' => time()];
+        if ($attempts['count'] >= 5 && (time() - $attempts['time']) < 300) {
+            $errors[] = 'تعداد تلاش‌های ناموفق زیاد. لطفاً ۵ دقیقه صبر کنید.';
+        } else {
+            $phone = sanitizeLogin($_POST['phone'] ?? '');
+            $password = $_POST['password'] ?? '';
+
+            if (empty($phone) || empty($password)) {
+                $errors[] = 'لطفاً تمام فیلدها را پر کنید.';
+            } elseif (!preg_match('/^09[0-9]{9}$/', $phone)) {
+                $errors[] = 'شماره موبایل نامعتبر است.';
+            } else {
+                $db = (new Database())->getConnection();
+                $stmt = $db->prepare("SELECT * FROM users WHERE phone = ? AND is_active = 1");
+                $stmt->execute([$phone]);
+                $user = $stmt->fetch();
+
+                if ($user && password_verify($password, $user['password_hash'])) {
+                    @unlink($attempts_file);
+
+                    $_SESSION['user_id'] = $user['id'];
+                    $_SESSION['full_name'] = $user['full_name'];
+                    $_SESSION['phone'] = $user['phone'];
+                    $_SESSION['credits'] = $user['credits'];
+                    $_SESSION['wallet_balance'] = $user['wallet_balance'] ?? 0;
+                    $_SESSION['is_admin'] = (bool)$user['is_admin'];
+                    $_SESSION['theme'] = $user['theme'] ?? 'light';
+
+                    // کوکی امن
+                    $token = bin2hex(random_bytes(32));
+                    setcookie('golestan_user', $user['id'], [
+                        'expires' => time() + (86400 * 30),
+                        'path' => '/',
+                        'secure' => true,
+                        'httponly' => true,
+                        'samesite' => 'Lax'
+                    ]);
+                    setcookie('golestan_token', $token, [
+                        'expires' => time() + (86400 * 30),
+                        'path' => '/',
+                        'secure' => true,
+                        'httponly' => true,
+                        'samesite' => 'Lax'
+                    ]);
+
+                    $stmt = $db->prepare("UPDATE users SET last_login = NOW() WHERE id = ?");
+                    $stmt->execute([$user['id']]);
+
+                    // چک رمز برای OAuth users
+                    if (empty($user['password_hash']) || password_verify('', $user['password_hash'])) {
+                        $redirect = '/user/dashboard/v2/set-password.php?welcome=1';
+                    } else {
+                        $redirect = $_GET['redirect'] ?? '/user/dashboard/v2/';
+                    }
+
+                    header("Location: " . $redirect);
+                    exit();
+                } else {
+                    if ((time() - $attempts['time']) > 300) {
+                        $attempts = ['count' => 1, 'time' => time()];
+                    } else {
+                        $attempts['count']++;
+                    }
+                    file_put_contents($attempts_file, json_encode($attempts));
+                    $errors[] = 'شماره موبایل یا رمز عبور اشتباه است.';
+                }
+            }
+        }
+    }
+    $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+}
+
+if (isLoggedInLogin() && $_SERVER['REQUEST_METHOD'] !== 'POST') {
+    header("Location: " . ($_GET['redirect'] ?? '/user/dashboard/v2/'));
+    exit();
+}
+
+require_once __DIR__ . '/includes/functions.php';
+$page_title = 'ورود | ' . SITE_NAME;
 require_once 'includes/header.php';
 ?>
 
-<!-- Schema.org SEO -->
-<script type="application/ld+json">
-{
-  "@context": "https://schema.org",
-  "@type": "SoftwareApplication",
-  "name": "کافی‌نت گلستان",
-  "applicationCategory": "AIApplication",
-  "description": "پلتفرم جامع هوش مصنوعی با چت Llama 4، ساخت عکس، تحلیل پروژه‌های گیت‌هاب، فروشگاه، ابزارهای ویرایش تصویر و مدیریت تسک",
-  "url": "https://golestanyasuj.ir",
-  "offers": { "@type": "Offer", "price": "0", "priceCurrency": "IRR" }
-}
-</script>
+<style>
+    .github-btn {
+        background: #24292e !important;
+        color: white !important;
+        border-color: #24292e !important;
+        margin-top: 8px;
+    }
 
-<section class="hero-new">
-    <div class="container">
-        <div class="hero-new-content">
-            <span class="hero-new-badge">✨ پلتفرم جامع هوش مصنوعی و خدمات کامپیوتری</span>
-            <h1 class="hero-new-title">
-                <span>هوش مصنوعی</span> در خدمت <span>کسب‌وکار</span>، <span>کدنویسی</span> و <span>خلاقیت</span> شما
-            </h1>
-            <p class="hero-new-desc">
-                چت هوشمند با Llama 4، ساخت تصاویر شگفت‌انگیز،
-                <strong>اتصال و تحلیل پروژه‌های گیت‌هاب با AI</strong>،
-                فروشگاه خدمات و کالا، ابزارهای ویرایش عکس، تقویم و مدیریت تسک‌ها —
-                همه در یک پلتفرم یکپارچه و <strong>کاملاً رایگان</strong>.
-            </p>
-            <div class="hero-new-actions">
-                <?php if (isLoggedIn()): ?>
-                    <a href="/user/dashboard/v2/chat.php" class="btn btn-light btn-lg"><i class="fas fa-comments"></i> چت با AI</a>
-                    <a href="/projects/" class="btn btn-light btn-lg"><i class="fab fa-github"></i> پروژه‌های گیت‌هاب</a>
-                <?php else: ?>
-                    <a href="/signup.php" class="btn btn-light btn-lg"><i class="fas fa-rocket"></i> شروع رایگان</a>
-                    <a href="/login.php" class="btn btn-light btn-lg"><i class="fas fa-sign-in-alt"></i> ورود</a>
-                <?php endif; ?>
-            </div>
-            
-            <!-- لینک‌های سریع -->
-            <div class="hero-quick-links">
-                <a href="/user/dashboard/v2/chat.php" class="hero-quick-link"><i class="fas fa-brain"></i> چت AI</a>
-                <a href="/projects/" class="hero-quick-link"><i class="fab fa-github"></i> پروژه‌های گیت‌هاب</a>
-                <a href="/user/dashboard/v2/image.php" class="hero-quick-link"><i class="fas fa-image"></i> ساخت عکس</a>
-                <a href="/shop/" class="hero-quick-link"><i class="fas fa-store"></i> فروشگاه</a>
-                <a href="/user/dashboard/v2/tools.php" class="hero-quick-link"><i class="fas fa-tools"></i> ابزارها</a>
-                <a href="/user/dashboard/v2/tasks.php" class="hero-quick-link"><i class="fas fa-tasks"></i> تسک‌ها</a>
-                <a href="/shop/agent.php" class="hero-quick-link"><i class="fas fa-robot"></i> مشاور AI</a>
-            </div>
-            
-            <div class="hero-new-stats">
-                <div class="stat-card"><span class="stat-icon">🦙</span><span class="stat-title">Llama 4</span><span class="stat-desc">مدل زبانی</span></div>
-                <div class="stat-card"><span class="stat-icon">🎨</span><span class="stat-title">۳ مدل</span><span class="stat-desc">ساخت عکس</span></div>
-                <div class="stat-card"><span class="stat-icon">📂</span><span class="stat-title">گیت‌هاب</span><span class="stat-desc">تحلیل کد با AI</span></div>
-                <div class="stat-card"><span class="stat-icon">🛒</span><span class="stat-title">فروشگاه</span><span class="stat-desc">خدمات و کالا</span></div>
-                <div class="stat-card"><span class="stat-icon">🆓</span><span class="stat-title">رایگان</span><span class="stat-desc">برای همیشه</span></div>
-            </div>
-        </div>
-    </div>
-</section>
+    .github-btn:hover {
+        background: #1b1f23 !important;
+        border-color: #1b1f23 !important;
+        color: white !important;
+    }
 
-<!-- خدمات -->
-<section id="services" class="services-section">
-    <div class="container">
-        <h2 class="section-title">🚀 هر آنچه نیاز دارید، یکجا اینجاست</h2>
-        <p class="section-subtitle">از هوش مصنوعی و تحلیل پروژه‌های گیت‌هاب تا فروشگاه و ابزارهای کاربردی</p>
-        <div class="services-grid">
-            <a href="/user/dashboard/v2/chat.php" class="service-card">
-                <div class="service-icon"><i class="fas fa-brain"></i></div>
-                <h3>💬 چت هوشمند</h3>
-                <p>پرسش و پاسخ، برنامه‌نویسی، ترجمه و یادگیری با Llama 4</p>
-            </a>
-            <a href="/projects/" class="service-card">
-                <div class="service-icon"><i class="fab fa-github"></i></div>
-                <h3>📂 پروژه‌های گیت‌هاب</h3>
-                <p>اتصال ریپازیتوری، تحلیل کد، رفع باگ و ویرایش با هوش مصنوعی</p>
-            </a>
-            <a href="/user/dashboard/v2/image.php" class="service-card">
-                <div class="service-icon"><i class="fas fa-wand-magic-sparkles"></i></div>
-                <h3>🎨 ساخت عکس با AI</h3>
-                <p>خلق تصاویر واقع‌گرا، هنری و فانتزی با سه مدل مختلف</p>
-            </a>
-            <a href="/shop/" class="service-card">
-                <div class="service-icon"><i class="fas fa-store"></i></div>
-                <h3>🛒 فروشگاه</h3>
-                <p>خدمات کامپیوتری، قطعات نو و استوک با بهترین قیمت</p>
-            </a>
-            <a href="/user/dashboard/v2/tools.php" class="service-card">
-                <div class="service-icon"><i class="fas fa-tools"></i></div>
-                <h3>🛠️ ابزارهای تصویر</h3>
-                <p>ویرایش، برش، چرخش، حذف پس‌زمینه و تبدیل فرمت</p>
-            </a>
-            <a href="/user/dashboard/v2/tasks.php" class="service-card">
-                <div class="service-icon"><i class="fas fa-tasks"></i></div>
-                <h3>📋 تقویم و تسک‌ها</h3>
-                <p>مدیریت وظایف با Kanban، تقویم و یادآوری</p>
-            </a>
-            <a href="/shop/agent.php" class="service-card">
-                <div class="service-icon"><i class="fas fa-robot"></i></div>
-                <h3>🤖 مشاور هوشمند</h3>
-                <p>راهنمای خرید با هوش مصنوعی — بهترین انتخاب</p>
-            </a>
-            <a href="/user/dashboard/v2/settings.php" class="service-card">
-                <div class="service-icon"><i class="fas fa-cog"></i></div>
-                <h3>⚙️ تنظیمات پیشرفته</h3>
-                <p>شخصی‌سازی تم، مدیریت حساب و امنیت</p>
-            </a>
-        </div>
-    </div>
-</section>
+    .github-btn i {
+        font-size: 1.2rem;
+    }
+</style>
 
-<!-- بخش پروژه‌های گیت‌هاب -->
-<section class="models-section" style="background:var(--bg-secondary);">
-    <div class="container">
-        <h2 class="section-title">📂 تحلیل پروژه‌های گیت‌هاب با هوش مصنوعی</h2>
-        <p class="section-subtitle">ریپازیتوری‌های خود را متصل کنید و از قدرت AI برای تحلیل، دیباگ و توسعه استفاده کنید</p>
-        
-        <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap:16px;">
-            <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:16px;padding:24px;text-align:center;">
-                <div style="font-size:2.5rem;margin-bottom:8px;">🔍</div>
-                <h4>تحلیل خودکار کد</h4>
-                <p style="color:var(--text-secondary);font-size:0.9rem;">AI ساختار پروژه را بررسی و تحلیل جامع ارائه می‌دهد</p>
-            </div>
-            <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:16px;padding:24px;text-align:center;">
-                <div style="font-size:2.5rem;margin-bottom:8px;">🐛</div>
-                <h4>رفع باگ هوشمند</h4>
-                <p style="color:var(--text-secondary);font-size:0.9rem;">باگ‌ها را پیدا کنید و با یک کلیک رفع کنید</p>
-            </div>
-            <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:16px;padding:24px;text-align:center;">
-                <div style="font-size:2.5rem;margin-bottom:8px;">✏️</div>
-                <h4>ویرایش کد با AI</h4>
-                <p style="color:var(--text-secondary);font-size:0.9rem;">دستور بدهید — AI کد را بهینه و ویرایش کند</p>
-            </div>
-            <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:16px;padding:24px;text-align:center;">
-                <div style="font-size:2.5rem;margin-bottom:8px;">💬</div>
-                <h4>چت با کد پروژه</h4>
-                <p style="color:var(--text-secondary);font-size:0.9rem;">مستقیم با AI درباره کد پروژه گفتگو کنید</p>
-            </div>
+<div class="auth-container">
+    <div class="auth-box">
+        <div class="auth-header">
+            <div class="auth-icon"><i class="fas fa-sign-in-alt"></i></div>
+            <h1>ورود به <?php echo SITE_NAME; ?></h1>
+            <p>از طریق گوگل، گیت‌هاب یا شماره موبایل وارد شوید</p>
         </div>
-        
-        <div style="text-align:center;margin-top:24px;">
-            <a href="/projects/" class="btn btn-primary btn-lg"><i class="fab fa-github"></i> مشاهده پروژه‌های گیت‌هاب</a>
-        </div>
-    </div>
-</section>
 
-<!-- CTA -->
-<section class="cta-section">
-    <div class="container" style="text-align:center;">
-        <h2>🎯 همین حالا شروع کنید — کاملاً رایگان</h2>
-        <p style="color:var(--text-secondary);margin-bottom:24px;">
-            ۱۰۰۰ اعتبار هدیه برای چت و ساخت عکس | اتصال پروژه‌های گیت‌هاب | فروشگاه خدمات و کالا
-        </p>
-        <?php if (!isLoggedIn()): ?>
-            <a href="/signup.php" class="btn btn-primary btn-lg"><i class="fas fa-user-plus"></i> ثبت‌نام رایگان</a>
-        <?php else: ?>
-            <a href="/user/dashboard/v2/chat.php" class="btn btn-primary btn-lg"><i class="fas fa-comments"></i> چت با AI</a>
-            <a href="/projects/" class="btn btn-outline btn-lg" style="margin-right:12px;"><i class="fab fa-github"></i> پروژه‌های گیت‌هاب</a>
+        <?php if (!empty($errors)): ?>
+            <div class="alert alert-error">
+                <?php foreach ($errors as $e) echo "<p>$e</p>"; ?>
+            </div>
         <?php endif; ?>
+
+        <a href="/oauth/google-login.php" class="oauth-btn">
+            <img src="https://www.google.com/favicon.ico" alt="Google" width="20" height="20">
+            ورود با حساب گوگل
+        </a>
+        <a href="/oauth/github-login.php" class="oauth-btn github-btn">
+            <i class="fab fa-github"></i> ورود با گیت‌هاب
+        </a>
+
+        <div class="divider"><span>یا با شماره موبایل</span></div>
+
+        <form method="POST">
+            <input type="hidden" name="csrf_token" value="<?php echo $_SESSION['csrf_token']; ?>">
+            <div class="form-group">
+                <label>📱 شماره موبایل</label>
+                <input type="tel" name="phone" value="<?php echo $phone; ?>" placeholder="09xxxxxxxxx" required>
+            </div>
+            <div class="form-group">
+                <label>🔒 رمز عبور</label>
+                <input type="password" name="password" placeholder="رمز عبور" required>
+            </div>
+            <div class="form-options">
+                <label class="remember-me"><input type="checkbox"> مرا به خاطر بسپار</label>
+                <a href="/forgot-password.php" class="forgot-link">فراموشی رمز؟</a>
+            </div>
+            <button type="submit" class="btn btn-primary btn-block">ورود به حساب</button>
+        </form>
+
+        <div class="auth-footer">
+            <p>حساب ندارید؟ <a href="/signup.php">ثبت‌نام کنید و ۱۰۰۰ اعتبار بگیرید</a></p>
+            <p><a href="/">← بازگشت به صفحه اصلی</a></p>
+        </div>
     </div>
-</section>
+</div>
 
 <?php require_once 'includes/footer.php'; ?>

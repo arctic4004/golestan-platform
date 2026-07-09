@@ -23,7 +23,7 @@ $error = '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $password = $_POST['password'] ?? '';
     $confirm = $_POST['confirm'] ?? '';
-    
+
     if (strlen($password) < 8) {
         $error = 'رمز عبور باید حداقل ۸ کاراکتر باشد.';
     } elseif ($password !== $confirm) {
@@ -46,38 +46,80 @@ require_once __DIR__ . '/../../../includes/header.php';
 ?>
 
 <style>
-.set-password-container {
-    max-width: 450px;
-    margin: 50px auto;
-    padding: 30px;
-    background: var(--card-bg, #fff);
-    border-radius: 16px;
-    box-shadow: 0 4px 20px rgba(0,0,0,0.1);
-}
-.set-password-container h2 {
-    text-align: center;
-    margin-bottom: 10px;
-}
-.set-password-container .subtitle {
-    text-align: center;
-    color: #666;
-    margin-bottom: 25px;
-    font-size: 14px;
-}
-.alert {
-    padding: 12px 16px;
-    border-radius: 8px;
-    margin-bottom: 20px;
-    text-align: center;
-}
-.alert-success { background: #d4edda; color: #155724; }
-.alert-error { background: #f8d7da; color: #721c24; }
-.form-group { margin-bottom: 15px; }
-.form-group label { display: block; margin-bottom: 5px; font-weight: bold; }
-.form-group input { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 8px; font-size: 16px; }
-.btn { display: block; width: 100%; padding: 12px; border: none; border-radius: 8px; font-size: 16px; cursor: pointer; }
-.btn-primary { background: #007bff; color: white; }
-.btn-primary:hover { background: #0056b3; }
+    .set-password-container {
+        max-width: 450px;
+        margin: 50px auto;
+        padding: 30px;
+        background: var(--card-bg, #fff);
+        border-radius: 16px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+    }
+
+    .set-password-container h2 {
+        text-align: center;
+        margin-bottom: 10px;
+    }
+
+    .set-password-container .subtitle {
+        text-align: center;
+        color: #666;
+        margin-bottom: 25px;
+        font-size: 14px;
+    }
+
+    .alert {
+        padding: 12px 16px;
+        border-radius: 8px;
+        margin-bottom: 20px;
+        text-align: center;
+    }
+
+    .alert-success {
+        background: #d4edda;
+        color: #155724;
+    }
+
+    .alert-error {
+        background: #f8d7da;
+        color: #721c24;
+    }
+
+    .form-group {
+        margin-bottom: 15px;
+    }
+
+    .form-group label {
+        display: block;
+        margin-bottom: 5px;
+        font-weight: bold;
+    }
+
+    .form-group input {
+        width: 100%;
+        padding: 10px;
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        font-size: 16px;
+    }
+
+    .btn {
+        display: block;
+        width: 100%;
+        padding: 12px;
+        border: none;
+        border-radius: 8px;
+        font-size: 16px;
+        cursor: pointer;
+    }
+
+    .btn-primary {
+        background: #007bff;
+        color: white;
+    }
+
+    .btn-primary:hover {
+        background: #0056b3;
+    }
 </style>
 
 <div class="set-password-container">
@@ -86,7 +128,7 @@ require_once __DIR__ . '/../../../includes/header.php';
         شما از طریق گوگل یا گیت‌هاب وارد شده‌اید.<br>
         برای ورود با شماره موبایل در آینده، لطفاً یک رمز عبور تعیین کنید.
     </p>
-    
+
     <?php if ($success): ?>
         <div class="alert alert-success">
             ✅ رمز عبور با موفقیت تنظیم شد!<br><br>
@@ -96,7 +138,7 @@ require_once __DIR__ . '/../../../includes/header.php';
         <?php if ($error): ?>
             <div class="alert alert-error"><?= htmlspecialchars($error) ?></div>
         <?php endif; ?>
-        
+
         <form method="POST">
             <div class="form-group">
                 <label>🔒 رمز عبور جدید (حداقل ۸ کاراکتر)</label>
@@ -108,7 +150,7 @@ require_once __DIR__ . '/../../../includes/header.php';
             </div>
             <button type="submit" class="btn btn-primary">ذخیره رمز عبور</button>
         </form>
-        
+
         <p style="text-align:center;margin-top:15px;">
             <a href="/user/dashboard/v2/" style="color:#999;font-size:14px;">بعداً انجام می‌دم</a>
         </p>
