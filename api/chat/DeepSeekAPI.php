@@ -2,25 +2,26 @@
 class DeepSeekAPI {
     
     public function sendMessage($message, $history = [], $model = null, $options = []) {
-        // اول Cloudflare (Llama 4)
+        // تست Cloudflare
         try {
             require_once __DIR__ . '/CloudflareAPI.php';
             $cf = new CloudflareAPI();
-            return $cf->sendMessage($message, $history, $model, $options);
+            $result = $cf->sendMessage($message, $history, $model, $options);
+            if (!empty($result['content'])) return $result;
         } catch (Exception $e) {
-            error_log("Cloudflare Error: " . $e->getMessage());
+            error_log("Cloudflare: " . $e->getMessage());
         }
         
-        // بعد Gemini
+        // تست Gemini
         try {
             require_once __DIR__ . '/GeminiAPI.php';
             $gemini = new GeminiAPI();
-            return $gemini->sendMessage($message, $history, $model, $options);
+            $result = $gemini->sendMessage($message, $history, $model, $options);
+            if (!empty($result['content'])) return $result;
         } catch (Exception $e) {
-            error_log("Gemini Error: " . $e->getMessage());
+            error_log("Gemini: " . $e->getMessage());
         }
         
-        // هیچکدوم کار نکرد
         return $this->getLocalResponse($message);
     }
     
@@ -32,8 +33,9 @@ class DeepSeekAPI {
             'قیمت' => "💰 قیمت خدمات:\n💻 تعمیر کامپیوتر: از ۲۰۰ هزارتومن\n🔒 امنیت شبکه: از ۱ میلیون\n🌐 طراحی سایت: از ۸ میلیون\n🎨 ساخت عکس با AI: رایگان\n\n📞 تماس: ۰۹۱۷۷۴۱۸۲۸۶",
             'آدرس' => '📍 یاسوج، پاسداران، بین گلستان ۳ و ۴\n📞 ۰۹۱۷۷۴۱۸۲۸۶',
             'ساعت' => '⏰ ساعت کاری: ۹ صبح تا ۱۰ شب - همه روزه',
-            'خدمات' => '🛠️ خدمات:\n💻 تعمیر کامپیوتر و لپ‌تاپ\n🔒 امنیت شبکه و نصب آنتی‌ویروس\n🌐 طراحی سایت و فروشگاه\n🎨 ساخت عکس با هوش مصنوعی\n📱 برنامه‌نویسی موبایل',
-            'پشتیبانی' => '📞 ۰۹۱۷۷۴۱۸۲۸۶\n📧 info@golestanyasuj.ir',
+            'خدمات' => '🛠️ خدمات ما:\n💻 تعمیر کامپیوتر و لپ‌تاپ\n🔒 امنیت شبکه\n🌐 طراحی سایت\n🎨 ساخت عکس با AI\n📱 برنامه‌نویسی',
+            'پشتیبانی' => '📞 پشتیبانی: ۰۹۱۷۷۴۱۸۲۸۶\n📧 info@golestanyasuj.ir',
+            'خداحافظ' => 'خدانگهدار! 🌹 هر وقت نیاز داشتید من اینجام.',
         ];
         
         foreach ($responses as $key => $response) {

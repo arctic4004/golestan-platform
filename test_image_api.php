@@ -1,106 +1,74 @@
 <?php
-// test_image_api.php - تست اختصاصی API ساخت عکس
-session_start();
-$_SESSION['user_id'] = 1;
-$_SESSION['credits'] = 999999;
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
 
-echo "<h2>🧪 تست اختصاصی API ساخت عکس</h2>";
+echo "<h2>🔍 تست API تصویر</h2>";
 
-echo "<h3>۱. تست مستقیم Cloudflare:</h3>";
-require_once 'config/database.php';
+// چک فایل
+echo "<h3>۱. چک فایل API:</h3>";
+$api_file = __DIR__ . '/api/image/edit.php';
+echo file_exists($api_file) ? "✅ edit.php هست<br>" : "❌ edit.php نیست!<br>";
+
+// چک توکن
+echo "<h3>۲. چک توکن:</h3>";
+require_once __DIR__ . '/config/database.php';
 $db = (new Database())->getConnection();
-$stmt = $db->prepare("SELECT setting_value FROM settings WHERE setting_key = ?");
-$stmt->execute(['deepseek_api_key']);
-$api_token = $stmt->fetchColumn();
-
-$account_id = '66b43b4fe65858aebd524af96cd93d54';
-
-$ch = curl_init("https://api.cloudflare.com/client/v4/accounts/{$account_id}/ai/run/@cf/black-forest-labs/flux-1-schnell");
-curl_setopt_array($ch, [
-    CURLOPT_RETURNTRANSFER => true, CURLOPT_POST => true,
-    CURLOPT_HTTPHEADER => ['Authorization: Bearer ' . $api_token, 'Content-Type: application/json'],
-    CURLOPT_POSTFIELDS => json_encode(['prompt' => 'test cat', 'num_steps' => 4, 'width' => 256, 'height' => 256]),
-    CURLOPT_TIMEOUT => 30
-]);
-$response = curl_exec($ch);
-$code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-curl_close($ch);
-
-echo "<p>HTTP $code | Size: " . strlen($response) . " bytes</p>";
-if ($code === 200 && strlen($response) > 1000) {
-    file_put_contents('uploads/test_direct.png', $response);
-    echo "<span style='color:green'>✅ مستقیم OK</span><br><img src='/uploads/test_direct.png' width='200'>";
-} else {
-    echo "<span style='color:red'>❌ خطا: " . htmlspecialchars(substr($response, 0, 200)) . "</span>";
+$stmt = $db->query("SELECT setting_key, LEFT(setting_value, 20) as v FROM settings WHERE setting_key LIKE '%api%' OR setting_key LIKE '%token%' OR setting_key LIKE '%key%'");
+while ($row = $stmt->fetch()) {
+    echo "🔑 {$row['setting_key']}: {$row['v']}...<br>";
 }
 
-echo "<h3>۲. تست api/image/edit.php:</h3>";
+// تست مستقیم API
+echo "<h3>۳. تست HuggingFace API:</h3>";
+$token = $db->query("SELECT setting_value FROM settings WHERE setting_key = 'huggingface_token'")->fetchColumn();
 
-// تست با file_get_contents
-$postdata = http_build_query([
-    'action' => 'text_to_image',
-    'prompt' => 'test api check',
-    'model' => 'flux',
-    'width' => 256,
-    'height' => 256,
-]);
-
-$opts = [
-    'http' => [
-        'method' => 'POST',
-        'header' => 'Content-Type: application/x-www-form-urlencoded',
-        'content' => $postdata,
-        'timeout' => 60,
-    ],
-    'ssl' => ['verify_peer' => false, 'verify_peer_name' => false],
-];
-
-$context = stream_context_create($opts);
-$result = @file_get_contents('https://golestanyasuj.ir/api/image/edit.php', false, $context);
-
-if ($result === false) {
-    echo "<span style='color:red'>❌ file_get_contents ناموفق - محدودیت سرور</span><br>";
-    
-    // تست با CURL به خودش
-    echo "<p>تست با CURL به خودش:</p>";
-    $ch = curl_init('https://golestanyasuj.ir/api/image/edit.php');
+if ($token) {
+    $ch = curl_init('https://api-inference.huggingface.co/models/stabilityai/stable-diffusion-xl-base-1.0');
     curl_setopt_array($ch, [
         CURLOPT_RETURNTRANSFER => true,
         CURLOPT_POST => true,
-        CURLOPT_POSTFIELDS => $postdata,
+        CURLOPT_HTTPHEADER => ['Authorization: Bearer ' . $token, 'Content-Type: application/json'],
+        CURLOPT_POSTFIELDS => json_encode(['inputs' => 'a cat']),
         CURLOPT_TIMEOUT => 60,
-        CURLOPT_SSL_VERIFYPEER => false,
+        CURLOPT_SSL_VERIFYPEER => false
     ]);
-    $result2 = curl_exec($ch);
-    $code2 = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-    $error2 = curl_error($ch);
+    $response = curl_exec($ch);
+    $http = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    $error = curl_error($ch);
     curl_close($ch);
     
-    echo "<p>HTTP $code2 | Error: " . ($error2 ?: 'none') . "</p>";
+    if ($error) echo "❌ Curl error: $error<br>";
+    else echo "HTTP: $http | Size: " . strlen($response) . " bytes | Type: " . substr($response, 0, 3) . "<br>";
     
-    if ($code2 === 200) {
-        $data = json_decode($result2, true);
-        if ($data && isset($data['success'])) {
-            echo "<span style='color:green'>✅ CURL به خودش OK</span><br>";
-            if ($data['image_url']) echo "<img src='{$data['image_url']}' width='200'>";
-        } else {
-            echo "<span style='color:red'>❌ " . ($data['error'] ?? 'Invalid response') . "</span>";
-        }
-    } else {
-        echo "<span style='color:red'>❌ HTTP $code2</span>";
-        echo "<pre>" . htmlspecialchars(substr($result2, 0, 500)) . "</pre>";
+    if ($http === 200 && strlen($response) > 1000) {
+        file_put_contents(__DIR__ . '/uploads/test_api.png', $response);
+        echo "✅ عکس ذخیره شد: <img src='/uploads/test_api.png' style='max-width:300px;border-radius:8px;margin-top:10px'><br>";
     }
 } else {
-    $data = json_decode($result, true);
-    if ($data && isset($data['success'])) {
-        echo "<span style='color:green'>✅ file_get_contents OK</span><br>";
-        if ($data['image_url']) echo "<img src='{$data['image_url']}' width='200'>";
-    } else {
-        echo "<span style='color:red'>❌ " . ($data['error'] ?? 'Invalid') . "</span>";
-    }
+    echo "❌ توکن HuggingFace پیدا نشد<br>";
 }
 
-echo "<h3>۳. نتیجه:</h3>";
-echo "<p style='color:#ff9800;'>⚠️ مشکل از CURL/fsockopen خود سرور هست. API از بیرون (مرورگر) کار میکنه.</p>";
-echo "<p>برو به <a href='/user/dashboard/v2/image.php'>صفحه ساخت عکس</a> و تست کن.</p>";
+// تست Cloudflare
+echo "<h3>۴. تست Cloudflare AI:</h3>";
+$cf_token = $db->query("SELECT setting_value FROM settings WHERE setting_key = 'deepseek_api_key'")->fetchColumn();
+if ($cf_token) {
+    $ch = curl_init('https://api.cloudflare.com/client/v4/accounts/66b43b4fe65858aebd524af96cd93d54/ai/run/@cf/stabilityai/stable-diffusion-xl-base-1.0');
+    curl_setopt_array($ch, [
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_POST => true,
+        CURLOPT_HTTPHEADER => ['Authorization: Bearer ' . $cf_token, 'Content-Type: application/json'],
+        CURLOPT_POSTFIELDS => json_encode(['prompt' => 'a cat']),
+        CURLOPT_TIMEOUT => 60,
+        CURLOPT_SSL_VERIFYPEER => false
+    ]);
+    $response = curl_exec($ch);
+    $http = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    $error = curl_error($ch);
+    curl_close($ch);
+    
+    if ($error) echo "❌ Curl error: $error<br>";
+    else echo "HTTP: $http | Response: " . substr($response, 0, 200) . "<br>";
+} else {
+    echo "❌ توکن Cloudflare پیدا نشد<br>";
+}
 ?>

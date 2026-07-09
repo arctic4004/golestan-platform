@@ -1,5 +1,4 @@
 <?php
-// user/dashboard/v2/index.php - نسخه کامل و نهایی
 require_once $_SERVER['DOCUMENT_ROOT'] . '/config/constants.php';
 require_once $_SERVER['DOCUMENT_ROOT'] . '/includes/functions.php';
 requireAuth();
@@ -7,127 +6,84 @@ requireAuth();
 $user = getUserData($_SESSION['user_id']);
 $db = (new Database())->getConnection();
 
-// آمار
-$total_convs = $db->query("SELECT COUNT(*) FROM conversations WHERE user_id = {$_SESSION['user_id']}")->fetchColumn();
-$total_msgs = $db->query("SELECT COUNT(*) FROM messages WHERE user_id = {$_SESSION['user_id']}")->fetchColumn();
-$total_tasks = $db->query("SELECT COUNT(*) FROM tasks WHERE user_id = {$_SESSION['user_id']}")->fetchColumn();
-$pending_tasks = $db->query("SELECT COUNT(*) FROM tasks WHERE user_id = {$_SESSION['user_id']} AND status IN ('todo','in_progress')")->fetchColumn();
-$total_orders = $db->query("SELECT COUNT(*) FROM orders WHERE user_id = {$_SESSION['user_id']}")->fetchColumn();
-$total_projects = $db->query("SELECT COUNT(*) FROM github_projects WHERE user_id = {$_SESSION['user_id']}")->fetchColumn();
+$stats = [
+    'convs' => $db->query("SELECT COUNT(*) FROM conversations WHERE user_id = {$_SESSION['user_id']}")->fetchColumn(),
+    'msgs' => $db->query("SELECT COUNT(*) FROM messages WHERE user_id = {$_SESSION['user_id']}")->fetchColumn(),
+    'tasks' => $db->query("SELECT COUNT(*) FROM tasks WHERE user_id = {$_SESSION['user_id']} AND status IN ('todo','in_progress')")->fetchColumn(),
+    'orders' => $db->query("SELECT COUNT(*) FROM orders WHERE user_id = {$_SESSION['user_id']}")->fetchColumn(),
+    'projects' => $db->query("SELECT COUNT(*) FROM github_projects WHERE user_id = {$_SESSION['user_id']}")->fetchColumn(),
+];
 $wallet = $user['wallet_balance'] ?? 0;
-
 $conversations = getConversations($_SESSION['user_id'], 3);
 
 $page_title = 'داشبورد | ' . SITE_NAME;
 $extra_css = ['user/dashboard/v2/assets/css/dashboard.css'];
+$extra_js = ['user/dashboard/v2/assets/js/dashboard.js'];
 require_once $_SERVER['DOCUMENT_ROOT'] . '/includes/header.php';
 ?>
 
 <div class="dashboard-container">
-    <aside class="dashboard-sidebar">
-        <div class="user-profile-summary">
-            <div class="avatar"><?php echo mb_substr($user['full_name'], 0, 1); ?></div>
-            <h3><?php echo sanitize($user['full_name']); ?></h3>
-            <span class="user-phone"><?php echo $user['phone']; ?></span>
-            <div style="margin-top:8px;font-size:0.85rem;">
-                <i class="fas fa-wallet"></i> <?php echo number_format($wallet); ?> تومان
-            </div>
-        </div>
-        <nav class="dashboard-nav">
-            <a href="/user/dashboard/v2/" class="nav-item active"><i class="fas fa-home"></i> داشبورد</a>
-            <a href="/user/dashboard/v2/chat.php" class="nav-item"><i class="fas fa-comments"></i> چت AI</a>
-            <a href="/user/dashboard/v2/image.php" class="nav-item"><i class="fas fa-image"></i> ساخت عکس</a>
-            <a href="/user/dashboard/v2/tools.php" class="nav-item"><i class="fas fa-tools"></i> ابزارها</a>
-            <a href="/projects/" class="nav-item"><i class="fab fa-github"></i> پروژه‌ها</a>
-            <a href="/user/dashboard/v2/tasks.php" class="nav-item"><i class="fas fa-tasks"></i> تسک‌ها</a>
-            <a href="/shop/" class="nav-item"><i class="fas fa-store"></i> فروشگاه</a>
-            <a href="/shop/orders.php" class="nav-item"><i class="fas fa-shopping-bag"></i> سفارشات</a>
-            <a href="/user/dashboard/v2/history.php" class="nav-item"><i class="fas fa-history"></i> تاریخچه</a>
-            <a href="/user/dashboard/v2/profile.php" class="nav-item"><i class="fas fa-user"></i> پروفایل</a>
-            <a href="/user/dashboard/v2/settings.php" class="nav-item"><i class="fas fa-cog"></i> تنظیمات</a>
-            <?php if(isAdmin()): ?><a href="/admin/" class="nav-item"><i class="fas fa-shield-alt"></i> مدیریت</a><?php endif; ?>
-            <a href="/logout.php" class="nav-item nav-item-danger"><i class="fas fa-sign-out-alt"></i> خروج</a>
-        </nav>
-    </aside>
-
+    <?php include __DIR__ . '/_sidebar.php'; ?>
+    
     <main class="dashboard-main">
         <div class="dashboard-header">
+            <button class="sidebar-toggle" onclick="toggleDashboardSidebar()"><i class="ph ph-list"></i></button>
             <div>
-                <h1>👋 خوش آمدید، <?php echo sanitize($user['full_name']); ?></h1>
-                <p><?php echo date('l d F Y'); ?> | امروز چه کاری برات انجام بدم؟</p>
+                <h1><i class="ph ph-hand-waving"></i> خوش آمدید، <?= sanitize($user['full_name']) ?></h1>
+                <p><?= jalali_date('l d F Y') ?> | امروز چه کاری برات انجام بدم؟</p>
             </div>
-            <a href="/user/dashboard/v2/chat.php" class="btn btn-primary"><i class="fas fa-plus"></i> چت جدید</a>
+            <a href="/user/dashboard/v2/chat.php" class="btn btn-primary"><i class="ph ph-plus"></i> چت جدید</a>
         </div>
 
-        <!-- کارت‌های آمار -->
         <div class="stats-grid">
-            <div class="stat-card">
-                <div class="stat-icon"><i class="fas fa-coins"></i></div>
-                <span class="stat-value"><?php echo number_format($user['credits']); ?></span>
-                <span class="stat-label">اعتبار</span>
+            <?php foreach ([
+                ['icon'=>'ph-coin','num'=>number_format($user['credits']),'label'=>'اعتبار','bg'=>'var(--primary-light)'],
+                ['icon'=>'ph-wallet','num'=>number_format($wallet),'label'=>'کیف پول','sub'=>'تومان','bg'=>'var(--primary-light)'],
+                ['icon'=>'ph-chats-circle','num'=>$stats['convs'],'label'=>'چت‌های فعال','bg'=>'var(--accent-light)'],
+                ['icon'=>'ph-shopping-bag','num'=>$stats['orders'],'label'=>'سفارشات','bg'=>'rgba(16,185,129,0.1)'],
+                ['icon'=>'ph-kanban','num'=>$stats['tasks'],'label'=>'تسک‌های باز','bg'=>'rgba(239,68,68,0.1)'],
+                ['icon'=>'ph-github-logo','num'=>$stats['projects'],'label'=>'پروژه‌ها','bg'=>'rgba(245,158,11,0.1)'],
+            ] as $s): ?>
+            <div class="stat-card" style="background:<?= $s['bg'] ?>; border: none; backdrop-filter: blur(10px);">
+                <div class="stat-icon" style="background: transparent;"><i class="ph <?= $s['icon'] ?>"></i></div>
+                <div>
+                    <span class="stat-value"><?= $s['num'] ?></span>
+                    <span class="stat-label"><?= $s['label'] ?></span>
+                    <?php if(isset($s['sub'])): ?><span class="stat-sub"><?= $s['sub'] ?></span><?php endif; ?>
+                </div>
             </div>
-            <div class="stat-card">
-                <div class="stat-icon"><i class="fas fa-wallet"></i></div>
-                <span class="stat-value"><?php echo number_format($wallet); ?></span>
-                <span class="stat-label">کیف پول (تومان)</span>
-            </div>
-            <div class="stat-card">
-                <div class="stat-icon"><i class="fas fa-comments"></i></div>
-                <span class="stat-value"><?php echo $total_convs; ?></span>
-                <span class="stat-label">چت‌های فعال</span>
-            </div>
-            <div class="stat-card">
-                <div class="stat-icon"><i class="fas fa-shopping-bag"></i></div>
-                <span class="stat-value"><?php echo $total_orders; ?></span>
-                <span class="stat-label">سفارشات</span>
-            </div>
-            <div class="stat-card">
-                <div class="stat-icon"><i class="fas fa-tasks"></i></div>
-                <span class="stat-value"><?php echo $pending_tasks; ?></span>
-                <span class="stat-label">تسک‌های باز</span>
-            </div>
-            <div class="stat-card">
-                <div class="stat-icon"><i class="fab fa-github"></i></div>
-                <span class="stat-value"><?php echo $total_projects; ?></span>
-                <span class="stat-label">پروژه‌ها</span>
-            </div>
+            <?php endforeach; ?>
         </div>
 
-        <!-- دسترسی سریع -->
-        <h2 style="margin:20px 0 10px;">🚀 دسترسی سریع</h2>
+        <h2 style="margin:20px 0 12px; display: flex; align-items: center; gap: 8px;"><i class="ph ph-rocket"></i> دسترسی سریع</h2>
         <div class="actions-grid">
-            <a href="/user/dashboard/v2/chat.php" class="action-card">
-                <i class="fas fa-brain"></i><h3>چت هوشمند</h3><p>Llama 4</p>
+            <?php foreach ([
+                ['url'=>'/user/dashboard/v2/chat.php','icon'=>'ph-brain','title'=>'چت هوشمند','desc'=>'Llama 4'],
+                ['url'=>'/user/dashboard/v2/image.php','icon'=>'ph-image','title'=>'ساخت عکس','desc'=>'۳ مدل'],
+                ['url'=>'/projects/','icon'=>'ph-github-logo','title'=>'پروژه‌ها','desc'=>'تحلیل با AI'],
+                ['url'=>'/shop/','icon'=>'ph-storefront','title'=>'فروشگاه','desc'=>'خدمات و کالا'],
+                ['url'=>'/user/dashboard/v2/tasks.php','icon'=>'ph-kanban','title'=>'تسک‌ها','desc'=>'مدیریت وظایف'],
+                ['url'=>'/shop/agent.php','icon'=>'ph-robot','title'=>'مشاور','desc'=>'راهنمای خرید'],
+            ] as $a): ?>
+            <a href="<?= $a['url'] ?>" class="action-card">
+                <i class="ph <?= $a['icon'] ?>"></i>
+                <h3><?= $a['title'] ?></h3>
+                <p><?= $a['desc'] ?></p>
             </a>
-            <a href="/user/dashboard/v2/image.php" class="action-card">
-                <i class="fas fa-image"></i><h3>ساخت عکس</h3><p>۳ مدل مختلف</p>
-            </a>
-            <a href="/projects/" class="action-card">
-                <i class="fab fa-github"></i><h3>پروژه‌های گیت‌هاب</h3><p>تحلیل با AI</p>
-            </a>
-            <a href="/shop/" class="action-card">
-                <i class="fas fa-store"></i><h3>فروشگاه</h3><p>خدمات و کالا</p>
-            </a>
-            <a href="/user/dashboard/v2/tasks.php" class="action-card">
-                <i class="fas fa-tasks"></i><h3>تسک‌ها</h3><p>مدیریت وظایف</p>
-            </a>
-            <a href="/shop/agent.php" class="action-card">
-                <i class="fas fa-robot"></i><h3>مشاور فروش</h3><p>راهنمای خرید</p>
-            </a>
+            <?php endforeach; ?>
         </div>
 
-        <!-- چت‌های اخیر -->
         <?php if ($conversations): ?>
-        <h2 style="margin:20px 0 10px;">💬 آخرین گفتگوها</h2>
+        <h2 style="margin:24px 0 12px; display: flex; align-items: center; gap: 8px;"><i class="ph ph-chats-circle"></i> آخرین گفتگوها</h2>
         <div class="conversation-list">
             <?php foreach ($conversations as $c): ?>
-            <a href="/user/dashboard/v2/chat.php?conversation=<?php echo $c['id']; ?>" class="conversation-item">
-                <div class="conv-icon"><i class="fas fa-comment-dots"></i></div>
+            <a href="/user/dashboard/v2/chat.php?conversation=<?= $c['id'] ?>" class="conversation-item">
+                <div class="conv-icon"><i class="ph ph-chat-circle"></i></div>
                 <div class="conv-info">
-                    <h4><?php echo sanitize($c['title']); ?></h4>
-                    <p><?php echo mb_substr($c['last_message'] ?? 'بدون پیام', 0, 50); ?></p>
+                    <h4><?= sanitize($c['title']) ?></h4>
+                    <p><?= mb_substr($c['last_message'] ?? 'بدون پیام', 0, 50) ?></p>
                 </div>
-                <span><?php echo $c['message_count']; ?> پیام</span>
+                <span class="conv-meta"><?= $c['message_count'] ?> پیام</span>
             </a>
             <?php endforeach; ?>
         </div>

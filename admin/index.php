@@ -1,481 +1,352 @@
 <?php
-// admin/index.php - پنل مدیریت کاملاً حرفه‌ای
-if (session_status() === PHP_SESSION_NONE) session_start();
+session_start();
+ob_start();
+require_once __DIR__ . '/../config/constants.php';
+require_once __DIR__ . '/../config/database.php';
+require_once __DIR__ . '/../includes/functions.php';
 
-require_once $_SERVER['DOCUMENT_ROOT'] . '/config/constants.php';
-require_once $_SERVER['DOCUMENT_ROOT'] . '/config/database.php';
-require_once $_SERVER['DOCUMENT_ROOT'] . '/includes/functions.php';
-
-if (!isLoggedIn() || !isAdmin()) redirect('/login.php');
+if (!isLoggedIn() || !isAdmin()) {
+    header('Location: /login.php');
+    exit;
+}
 
 $db = (new Database())->getConnection();
 
-// =============================================
-// پردازش عملیات POST
-// =============================================
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $action = $_POST['action'] ?? '';
-    $tab = $_POST['tab'] ?? 'dashboard';
-    
-    if ($action === 'toggle_user') {
-        $db->prepare("UPDATE users SET is_active = NOT is_active WHERE id = ?")->execute([$_POST['user_id']]);
-    } elseif ($action === 'edit_user') {
-        $db->prepare("UPDATE users SET full_name=?, email=?, credits=?, wallet_balance=?, is_admin=? WHERE id=?")
-           ->execute([$_POST['full_name'], $_POST['email'], (int)$_POST['credits'], (int)$_POST['wallet_balance'], isset($_POST['is_admin'])?1:0, $_POST['user_id']]);
-    } elseif ($action === 'add_product') {
-        $db->prepare("INSERT INTO products (name, description, price, type, `condition`, stock, category) VALUES (?,?,?,?,?,?,?)")
-           ->execute([$_POST['name'], $_POST['description'], (int)$_POST['price'], $_POST['type'], $_POST['condition']??'new', (int)$_POST['stock'], $_POST['category']]);
-    } elseif ($action === 'update_order') {
-        $db->prepare("UPDATE orders SET status=? WHERE id=?")->execute([$_POST['status'], $_POST['order_id']]);
-    } elseif ($action === 'update_settings') {
-        foreach (['deepseek_api_key','max_free_credits','rate_limit_per_hour'] as $k) {
-            if (isset($_POST['settings'][$k])) {
-                $db->prepare("INSERT INTO settings (setting_key, setting_value) VALUES (?,?) ON DUPLICATE KEY UPDATE setting_value=?")
-                   ->execute([$k, $_POST['settings'][$k], $_POST['settings'][$k]]);
-            }
-        }
-    } elseif ($action === 'add_todo') {
-        $db->prepare("INSERT INTO todos (user_id, title, priority) VALUES (?,?,?)")->execute([$_SESSION['user_id'], $_POST['title'], $_POST['priority']??'medium']);
-    } elseif ($action === 'toggle_todo') {
-        $db->query("UPDATE todos SET status = IF(status='completed','pending','completed'), completed_at = IF(status='completed',NULL,NOW()) WHERE id = {$_POST['todo_id']}");
-    }
-    
-    redirect('/admin/?tab=' . $tab);
-}
-
-// =============================================
-// پارامترها
-// =============================================
-$tab = $_GET['tab'] ?? 'dashboard';
-$search = $_GET['search'] ?? '';
-$sort = $_GET['sort'] ?? 'created_at';
-$order = $_GET['order'] ?? 'DESC';
-$user_id = $_GET['user_id'] ?? 0;
-
-$allowed_sorts = ['id', 'created_at', 'full_name', 'phone', 'credits', 'wallet_balance', 'total', 'updated_at', 'price', 'name'];
-if (!in_array($sort, $allowed_sorts)) $sort = 'created_at';
-$order = strtoupper($order) === 'ASC' ? 'ASC' : 'DESC';
-
-// =============================================
-// آمار کلی
-// =============================================
 $stats = [
-    'users'    => $db->query("SELECT COUNT(*) FROM users")->fetchColumn(),
-    'active'   => $db->query("SELECT COUNT(*) FROM users WHERE is_active=1")->fetchColumn(),
-    'messages' => $db->query("SELECT COUNT(*) FROM messages")->fetchColumn(),
-    'chats'    => $db->query("SELECT COUNT(*) FROM conversations")->fetchColumn(),
-    'images'   => count(glob($_SERVER['DOCUMENT_ROOT'].'/uploads/gen_*') ?: []) + count(glob($_SERVER['DOCUMENT_ROOT'].'/uploads/ai_*') ?: []),
-    'products' => $db->query("SELECT COUNT(*) FROM products WHERE is_active=1")->fetchColumn(),
-    'orders'   => $db->query("SELECT COUNT(*) FROM orders")->fetchColumn(),
-    'revenue'  => $db->query("SELECT COALESCE(SUM(total),0) FROM orders WHERE status IN ('paid','shipped','delivered')")->fetchColumn(),
-    'pending'  => $db->query("SELECT COUNT(*) FROM service_requests WHERE status='pending'")->fetchColumn(),
+    'users' => $db->query("SELECT COUNT(*) FROM users")->fetchColumn(),
+    'active_users' => $db->query("SELECT COUNT(*) FROM users WHERE last_login > DATE_SUB(NOW(), INTERVAL 30 DAY)")->fetchColumn(),
+    'new_today' => $db->query("SELECT COUNT(*) FROM users WHERE DATE(created_at) = CURDATE()")->fetchColumn(),
+    'customers' => $db->query("SELECT COUNT(*) FROM customers")->fetchColumn(),
+    'messages' => $db->query("SELECT COUNT(*) FROM messages WHERE created_at > DATE_SUB(NOW(), INTERVAL 24 HOUR)")->fetchColumn(),
+    'orders' => $db->query("SELECT COUNT(*) FROM orders WHERE created_at > DATE_SUB(NOW(), INTERVAL 7 DAY)")->fetchColumn(),
+    'total_credits' => $db->query("SELECT SUM(credits) FROM users")->fetchColumn() ?? 0,
 ];
 
-// =============================================
-// داده‌ها بر اساس تب
-// =============================================
-$data = [];
-$total = 0;
-$page_num = max(1, (int)($_GET['page'] ?? 1));
-$per_page = 50;
-$offset = ($page_num - 1) * $per_page;
+$rank_dist = $db->query("SELECT COALESCE(rank,'bronze') as r, COUNT(*) as cnt FROM users GROUP BY rank")->fetchAll();
+$rank_colors = ['diamond'=>'#0e7490','platinum'=>'#6d28d9','gold'=>'#a16207','silver'=>'#475569','bronze'=>'#92400e'];
+$rank_icons = ['diamond'=>'👑','platinum'=>'💎','gold'=>'🥇','silver'=>'🥈','bronze'=>'🥉'];
 
-switch ($tab) {
-    case 'users':
-        $q = "SELECT * FROM users WHERE 1=1";
-        $p = [];
-        if ($search) { $q .= " AND (full_name LIKE ? OR phone LIKE ? OR email LIKE ?)"; $p = ["%$search%","%$search%","%$search%"]; }
-        $count_q = str_replace('SELECT *', 'SELECT COUNT(*)', $q);
-        $stmt = $db->prepare($count_q);
-        $stmt->execute($p);
-        $total = $stmt->fetchColumn();
-        $q .= " ORDER BY `$sort` $order LIMIT $per_page OFFSET $offset";
-        $stmt = $db->prepare($q);
-        $stmt->execute($p);
-        $data = $stmt->fetchAll();
-        break;
-        
-    case 'user_detail':
-        $stmt = $db->prepare("SELECT * FROM users WHERE id=?");
-        $stmt->execute([$user_id]);
-        $data = $stmt->fetch();
-        if (!$data) { redirect('/admin/?tab=users'); }
-        
-        $stmt = $db->prepare("SELECT COUNT(*) FROM conversations WHERE user_id=?");
-        $stmt->execute([$user_id]);
-        $user_stats['chats'] = $stmt->fetchColumn();
-        
-        $stmt = $db->prepare("SELECT COUNT(*) FROM messages WHERE user_id=?");
-        $stmt->execute([$user_id]);
-        $user_stats['messages'] = $stmt->fetchColumn();
-        
-        $stmt = $db->prepare("SELECT COUNT(*) FROM orders WHERE user_id=?");
-        $stmt->execute([$user_id]);
-        $user_stats['orders'] = $stmt->fetchColumn();
-        
-        $stmt = $db->prepare("SELECT COUNT(*) FROM tasks WHERE user_id=?");
-        $stmt->execute([$user_id]);
-        $user_stats['tasks'] = $stmt->fetchColumn();
-        
-        $stmt = $db->prepare("SELECT * FROM conversations WHERE user_id=? ORDER BY updated_at DESC LIMIT 20");
-        $stmt->execute([$user_id]);
-        $user_chats = $stmt->fetchAll();
-        
-        $stmt = $db->prepare("SELECT * FROM orders WHERE user_id=? ORDER BY created_at DESC LIMIT 20");
-        $stmt->execute([$user_id]);
-        $user_orders = $stmt->fetchAll();
-        
-        $stmt = $db->prepare("SELECT * FROM activity_logs WHERE user_id=? ORDER BY created_at DESC LIMIT 50");
-        $stmt->execute([$user_id]);
-        $user_logs = $stmt->fetchAll();
-        break;
-        
-    case 'products':
-        $total = $db->query("SELECT COUNT(*) FROM products")->fetchColumn();
-        $data = $db->query("SELECT * FROM products ORDER BY `$sort` $order LIMIT $per_page OFFSET $offset")->fetchAll();
-        break;
-        
-    case 'orders_list':
-        $total = $db->query("SELECT COUNT(*) FROM orders")->fetchColumn();
-        $data = $db->query("SELECT o.*, u.full_name, u.phone FROM orders o JOIN users u ON o.user_id=u.id ORDER BY `$sort` $order LIMIT $per_page OFFSET $offset")->fetchAll();
-        break;
-        
-    case 'chats':
-        $total = $db->query("SELECT COUNT(*) FROM conversations")->fetchColumn();
-        $data = $db->query("SELECT c.*, u.full_name, (SELECT COUNT(*) FROM messages WHERE conversation_id=c.id) as msg_count FROM conversations c LEFT JOIN users u ON c.user_id=u.id ORDER BY `$sort` $order LIMIT $per_page OFFSET $offset")->fetchAll();
-        break;
-        
-    case 'logs':
-        $total = $db->query("SELECT COUNT(*) FROM activity_logs")->fetchColumn();
-        $data = $db->query("SELECT al.*, u.full_name FROM activity_logs al LEFT JOIN users u ON al.user_id=u.id ORDER BY `$sort` $order LIMIT $per_page OFFSET $offset")->fetchAll();
-        break;
-        
-    case 'settings':
-        $data = $db->query("SELECT setting_key, setting_value FROM settings")->fetchAll(PDO::FETCH_KEY_PAIR);
-        break;
+$tab = $_GET['tab'] ?? 'dashboard';
+$allowed = ['dashboard', 'users', 'user_detail', 'user_edit', 'customers'];
+
+if (in_array($tab, ['user_detail', 'user_edit']) && empty($_GET['id'])) {
+    $tab = 'users';
 }
 
-$todos = $db->query("SELECT * FROM todos WHERE user_id={$_SESSION['user_id']} ORDER BY FIELD(status,'pending','in_progress','completed'), FIELD(priority,'high','medium','low')")->fetchAll();
-$recent_logs = $db->query("SELECT al.*, u.full_name FROM activity_logs al LEFT JOIN users u ON al.user_id=u.id ORDER BY al.created_at DESC LIMIT 8")->fetchAll();
+if ($tab === 'customers' && isset($_GET['delete'])) {
+    $db->prepare("DELETE FROM customers WHERE id = ?")->execute([$_GET['delete']]);
+    header('Location: /admin/?tab=customers'); exit;
+}
+if ($tab === 'users' && isset($_GET['delete'])) {
+    $db->prepare("DELETE FROM users WHERE id = ? AND is_admin = 0")->execute([$_GET['delete']]);
+    header('Location: /admin/?tab=users'); exit;
+}
+if ($tab === 'users' && isset($_GET['toggle'])) {
+    $db->prepare("UPDATE users SET is_active = NOT is_active WHERE id = ? AND is_admin = 0")->execute([$_GET['toggle']]);
+    header('Location: /admin/?tab=users'); exit;
+}
+if ($tab === 'user_edit' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+    $uid = $_GET['id'] ?? 0;
+    $db->prepare("UPDATE users SET full_name=?, phone=?, email=?, city=?, birth_date=?, bio=?, credits=?, wallet_balance=?, rank=?, rank_score=?, is_active=?, is_admin=? WHERE id=?")
+       ->execute([$_POST['full_name'], $_POST['phone'], $_POST['email'], $_POST['city'], $_POST['birth_date']?:null, $_POST['bio'], $_POST['credits'], $_POST['wallet_balance']??0, $_POST['rank'], $_POST['rank_score']??0, isset($_POST['is_active'])?1:0, isset($_POST['is_admin'])?1:0, $uid]);
+    if (!empty($_POST['phone'])) {
+        $db->prepare("UPDATE customers SET full_name=?, phone=?, email=? WHERE phone=? OR user_id=?")->execute([$_POST['full_name'], $_POST['phone'], $_POST['email'], $_POST['phone'], $uid]);
+    }
+    header('Location: /admin/?tab=user_detail&id='.$uid.'&saved=1'); exit;
+}
 
 $page_title = 'پنل مدیریت | ' . SITE_NAME;
-require_once $_SERVER['DOCUMENT_ROOT'] . '/includes/header.php';
+require_once __DIR__ . '/../includes/header.php';
 ?>
 
 <style>
-.admin-wrapper { display: flex; min-height: calc(100vh - 60px); margin-top: 60px; background: var(--bg-secondary); }
-.admin-sidebar { width: 250px; min-width: 250px; background: var(--bg-card); border-left: 1px solid var(--border); padding: 24px 0; position: sticky; top: 60px; height: calc(100vh - 60px); overflow-y: auto; }
-.admin-sidebar-header { padding: 0 20px 16px; border-bottom: 1px solid var(--border); margin-bottom: 12px; display: flex; align-items: center; gap: 8px; font-weight: 700; color: var(--primary); font-size: 1rem; }
-.admin-sidebar a { display: flex; align-items: center; gap: 10px; padding: 10px 20px; color: var(--text-secondary); font-size: 0.9rem; transition: all 0.15s; border-right: 3px solid transparent; }
-.admin-sidebar a:hover { background: var(--bg-hover); color: var(--text-primary); }
-.admin-sidebar a.active { background: var(--primary-light); color: var(--primary); border-right-color: var(--primary); font-weight: 600; }
-.admin-main { flex: 1; padding: 24px 28px; overflow-y: auto; }
-
-.admin-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
-.admin-header h1 { font-size: 1.6rem; font-weight: 800; }
-.breadcrumb { font-size: 0.85rem; color: var(--text-muted); margin-bottom: 4px; }
-.breadcrumb a { color: var(--primary); }
-
-.stats-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 12px; margin-bottom: 28px; }
-.stat-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 14px; padding: 20px; text-align: center; transition: all 0.2s; }
-.stat-card:hover { box-shadow: var(--shadow-lg); transform: translateY(-2px); border-color: var(--primary); }
-.stat-card .icon { font-size: 1.8rem; margin-bottom: 8px; }
-.stat-card .num { font-size: 1.8rem; font-weight: 800; color: var(--text-primary); }
-.stat-card .lbl { font-size: 0.8rem; color: var(--text-muted); margin-top: 2px; }
-
-.table-wrapper { background: var(--bg-card); border: 1px solid var(--border); border-radius: 14px; overflow: hidden; }
-.table-header { display: flex; justify-content: space-between; align-items: center; padding: 16px 20px; border-bottom: 1px solid var(--border); }
-.table-header h3 { font-size: 1rem; font-weight: 700; }
-.table-header .search-box { display: flex; gap: 8px; }
-.table-header input { padding: 8px 14px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg-input); color: var(--text-primary); font-family: var(--font); font-size: 0.85rem; width: 220px; }
-.table-responsive { overflow-x: auto; }
-table { width: 100%; border-collapse: collapse; }
-table th { background: var(--bg-tertiary); padding: 12px 16px; font-size: 0.8rem; font-weight: 700; text-align: right; white-space: nowrap; }
-table td { padding: 10px 16px; border-bottom: 1px solid var(--border-light); font-size: 0.85rem; }
-table tr:hover td { background: rgba(99,102,241,0.02); }
-.badge { display: inline-block; padding: 4px 10px; border-radius: 20px; font-size: 0.75rem; font-weight: 600; }
-.badge-success { background: #d1fae5; color: #065f46; }
-.badge-danger { background: #fee2e2; color: #991b1b; }
-.badge-warning { background: #fef3c7; color: #92400e; }
-.badge-info { background: #dbeafe; color: #1e40af; }
-
-.info-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 14px; padding: 20px; margin-bottom: 16px; }
-.info-card h3 { font-size: 1rem; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
-.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-.grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
-
-.pagination { display: flex; gap: 4px; justify-content: center; padding: 16px; }
-.pagination a, .pagination span { padding: 8px 14px; border: 1px solid var(--border); border-radius: 8px; font-size: 0.85rem; color: var(--text-secondary); text-decoration: none; transition: all 0.15s; }
-.pagination a:hover { background: var(--bg-hover); color: var(--primary); }
-.pagination .active { background: var(--primary); color: white; border-color: var(--primary); }
-
-.mobile-menu-btn { display: none; }
-@media (max-width: 768px) {
-    .admin-sidebar { position: fixed; right: -280px; z-index: 200; transition: right 0.3s; box-shadow: var(--shadow-xl); }
-    .admin-sidebar.open { right: 0; }
-    .mobile-menu-btn { display: block; margin-bottom: 16px; }
-    .admin-main { padding: 16px; }
-    .grid-2, .grid-3 { grid-template-columns: 1fr; }
-    .table-header { flex-direction: column; gap: 8px; }
-    .table-header input { width: 100%; }
-}
-
-.todo-item { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--border-light); }
-.todo-item:last-child { border-bottom: none; }
-.todo-check { background: none; border: none; cursor: pointer; font-size: 1.1rem; }
-.todo-title { flex: 1; }
-.todo-title.done { text-decoration: line-through; opacity: 0.6; }
+.admin-wrapper { display: flex; min-height: calc(100vh - 60px); }
+.admin-sidebar { width: 260px; background: #0f172a; color: #e2e8f0; padding: 0; position: sticky; top: 60px; height: calc(100vh - 60px); overflow-y: auto; z-index: 100; }
+.sidebar-header { padding: 24px 20px; border-bottom: 1px solid #1e293b; }
+.sidebar-header h3 { font-size: 16px; margin: 0; }
+.sidebar-header small { color: #64748b; font-size: 11px; display: block; margin-top: 4px; }
+.sidebar-section { padding: 8px 20px 4px; font-size: 10px; color: #64748b; text-transform: uppercase; letter-spacing: 1.5px; font-weight: 700; }
+.sidebar-menu { list-style: none; padding: 0; margin: 0; }
+.sidebar-menu li { margin: 1px 10px; }
+.sidebar-menu a { display: flex; align-items: center; gap: 12px; padding: 10px 14px; color: #94a3b8; text-decoration: none; border-radius: 10px; font-size: 13px; transition: all 0.15s; font-weight: 500; }
+.sidebar-menu a:hover, .sidebar-menu a.active { background: #1e293b; color: #fff; }
+.sidebar-menu a .icon { font-size: 16px; width: 22px; text-align: center; }
+.sidebar-badge { background: #ef4444; color: #fff; border-radius: 10px; padding: 2px 8px; font-size: 10px; margin-right: auto; }
+.sidebar-footer { padding: 16px 20px; border-top: 1px solid #1e293b; }
+.sidebar-footer a { color: #94a3b8; font-size: 12px; text-decoration: none; }
+.admin-content { flex: 1; padding: 0; background: #f1f5f9; }
+.admin-topbar { background: #fff; padding: 16px 28px; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; }
+.admin-topbar h1 { font-size: 20px; color: #0f172a; margin: 0; }
+.admin-topbar .breadcrumb { font-size: 12px; color: #64748b; }
+.admin-topbar .breadcrumb a { color: #0ea5e9; }
+.admin-inner { padding: 28px; }
+.stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 28px; }
+.stat-card { background: #fff; border-radius: 16px; padding: 20px 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.04); display: flex; align-items: center; gap: 16px; transition: all 0.2s; border: 1px solid #f1f5f9; }
+.stat-card:hover { transform: translateY(-2px); box-shadow: 0 8px 25px rgba(0,0,0,0.06); }
+.stat-icon { width: 50px; height: 50px; border-radius: 14px; display: flex; align-items: center; justify-content: center; font-size: 22px; }
+.stat-info .num { font-size: 26px; font-weight: 800; color: #0f172a; line-height: 1; }
+.stat-info .label { font-size: 12px; color: #64748b; margin-top: 4px; }
+.stat-info .sublabel { font-size: 10px; color: #94a3b8; }
+.card { background: #fff; border-radius: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.04); border: 1px solid #f1f5f9; overflow: hidden; }
+.card-header { padding: 16px 20px; border-bottom: 1px solid #f1f5f9; display: flex; justify-content: space-between; align-items: center; }
+.card-header h3 { font-size: 16px; margin: 0; }
+.card-body { padding: 0; overflow-x: auto; }
+.admin-table { width: 100%; border-collapse: collapse; }
+.admin-table th { background: #f8fafc; padding: 12px 16px; text-align: right; font-size: 11px; color: #64748b; font-weight: 700; white-space: nowrap; }
+.admin-table td { padding: 12px 16px; border-top: 1px solid #f1f5f9; font-size: 13px; }
+.admin-table tbody tr:hover { background: #f8fafc; }
+.rank-badge { display: inline-flex; align-items: center; gap: 4px; padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; }
+.rank-bronze { background: #fef3c7; color: #92400e; } .rank-silver { background: #f1f5f9; color: #475569; } .rank-gold { background: #fef9c3; color: #a16207; } .rank-platinum { background: #f5f3ff; color: #6d28d9; } .rank-diamond { background: #ecfeff; color: #0e7490; }
+.btn { display: inline-flex; align-items: center; gap: 6px; padding: 10px 18px; border-radius: 10px; font-size: 13px; font-weight: 600; cursor: pointer; border: none; transition: all 0.2s; text-decoration: none; font-family: inherit; }
+.btn-primary { background: #0ea5e9; color: #fff; } .btn-primary:hover { background: #0284c7; }
+.btn-ghost { background: transparent; color: #64748b; border: 1px solid #e2e8f0; } .btn-ghost:hover { background: #f8fafc; }
+.btn-xs { padding: 5px 10px; font-size: 11px; border-radius: 8px; }
+.btn-xs.btn-view { background: #eff6ff; color: #3b82f6; } .btn-xs.btn-edit { background: #fefce8; color: #ca8a04; } .btn-xs.btn-danger { background: #fef2f2; color: #ef4444; }
+.toolbar { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
+.toolbar input, .toolbar select { padding: 10px 14px; border: 1px solid #e2e8f0; border-radius: 10px; font-size: 13px; font-family: inherit; background: #fff; }
+.toolbar input { flex: 1; min-width: 200px; }
+.detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+.detail-grid .card { padding: 20px; }
+.detail-table { width: 100%; font-size: 13px; } .detail-table td { padding: 6px 0; } .detail-table td:first-child { color: #64748b; width: 100px; } .detail-table td:last-child { font-weight: 600; }
+.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.form-group label { display: block; margin-bottom: 5px; font-weight: 600; font-size: 12px; color: #475569; }
+.form-group input, .form-group select, .form-group textarea { width: 100%; padding: 10px 14px; border: 1px solid #e2e8f0; border-radius: 10px; font-size: 13px; font-family: inherit; background: #fff; }
+.form-group input:focus, .form-group select:focus, .form-group textarea:focus { border-color: #0ea5e9; outline: none; }
+.form-group.full { grid-column: 1 / -1; }
+.checkbox-label { display: flex; align-items: center; gap: 8px; cursor: pointer; font-weight: 500; } .checkbox-label input { width: auto; }
+.empty-state { text-align: center; padding: 60px 20px; color: #94a3b8; } .empty-state .icon { font-size: 60px; margin-bottom: 16px; }
+.badge { padding: 2px 8px; border-radius: 10px; font-size: 10px; font-weight: 600; }
+@media (max-width: 768px) { .admin-sidebar { display: none; } .detail-grid, .form-grid { grid-template-columns: 1fr; } .admin-inner { padding: 16px; } }
 </style>
 
 <div class="admin-wrapper">
-    <aside class="admin-sidebar" id="adminSidebar">
-        <div class="admin-sidebar-header">🛡️ پنل مدیریت</div>
-        <a href="?tab=dashboard" class="<?=$tab=='dashboard'?'active':''?>"><span>📊</span> داشبورد</a>
-        <a href="?tab=users" class="<?=$tab=='users'?'active':''?>"><span>👥</span> کاربران</a>
-        <a href="?tab=products" class="<?=$tab=='products'?'active':''?>"><span>📦</span> محصولات</a>
-        <a href="?tab=orders_list" class="<?=$tab=='orders_list'?'active':''?>"><span>🛒</span> سفارشات</a>
-        <a href="?tab=chats" class="<?=$tab=='chats'?'active':''?>"><span>💬</span> چت‌ها</a>
-        <a href="?tab=logs" class="<?=$tab=='logs'?'active':''?>"><span>📜</span> لاگ فعالیت</a>
-        <a href="?tab=settings" class="<?=$tab=='settings'?'active':''?>"><span>⚙️</span> تنظیمات</a>
-        <a href="/" target="_blank"><span>🌐</span> مشاهده سایت</a>
-    </aside>
-
-    <main class="admin-main">
-        <button class="mobile-menu-btn btn btn-outline btn-sm" onclick="document.getElementById('adminSidebar').classList.toggle('open')">☰ منو</button>
-        
-        <!-- ==================== داشبورد ==================== -->
+    <div class="admin-sidebar">
+        <div class="sidebar-header"><h3>⚙️ مدیریت</h3><small><?= SITE_NAME ?> | <?= jalali_date('Y/m/d') ?></small></div>
+        <div class="sidebar-section">اصلی</div>
+        <ul class="sidebar-menu">
+            <li><a href="/admin/" class="<?= $tab=='dashboard'?'active':'' ?>"><span class="icon">📊</span> داشبورد</a></li>
+        </ul>
+        <div class="sidebar-section">مدیریت</div>
+        <ul class="sidebar-menu">
+            <li><a href="/admin/?tab=users" class="<?= in_array($tab,['users','user_detail','user_edit'])?'active':'' ?>"><span class="icon">👥</span> کاربران <span class="sidebar-badge"><?= $stats['users'] ?></span></a></li>
+            <li><a href="/admin/?tab=customers" class="<?= $tab=='customers'?'active':'' ?>"><span class="icon">👤</span> مشتریان CRM</a></li>
+        </ul>
+        <div class="sidebar-footer"><a href="/">🏠 بازگشت به سایت</a></div>
+    </div>
+    
+    <div class="admin-content">
         <?php if ($tab === 'dashboard'): ?>
-        <div class="admin-header">
-            <div>
-                <div class="breadcrumb"><a href="?tab=dashboard">پنل مدیریت</a> / داشبورد</div>
-                <h1>📊 نمای کلی</h1>
-            </div>
-            <span style="color:var(--text-muted);"><?=date('l d F Y')?></span>
-        </div>
-
-        <div class="stats-grid">
-            <?php foreach ([
-                ['👥','کل کاربران',$stats['users'],'users'],
-                ['✅','کاربران فعال',$stats['active'],'users'],
-                ['💬','کل پیام‌ها',number_format($stats['messages']),'chats'],
-                ['💭','چت‌ها',$stats['chats'],'chats'],
-                ['🖼️','تصاویر',$stats['images'],'images'],
-                ['📦','محصولات',$stats['products'],'products'],
-                ['🛒','سفارشات',$stats['orders'],'orders_list'],
-                ['💰','درآمد',number_format($stats['revenue']).' تومان','orders_list'],
-                ['📋','در انتظار',$stats['pending'],'requests'],
-            ] as $s): ?>
-            <a href="?tab=<?=$s[3]?>" style="text-decoration:none;color:inherit;">
-                <div class="stat-card"><div class="icon"><?=$s[0]?></div><div class="num"><?=$s[2]?></div><div class="lbl"><?=$s[1]?></div></div>
-            </a>
-            <?php endforeach; ?>
-        </div>
-
-        <div class="grid-2">
-            <div class="info-card">
-                <h3>📝 وظایف امروز</h3>
-                <form method="POST" style="display:flex;gap:6px;margin-bottom:12px;">
-                    <input type="hidden" name="action" value="add_todo"><input type="hidden" name="tab" value="dashboard">
-                    <input type="text" name="title" placeholder="وظیفه جدید..." required style="flex:1;padding:8px 12px;border:1px solid var(--border);border-radius:8px;background:var(--bg-input);color:var(--text-primary);font-family:var(--font);">
-                    <button type="submit" class="btn btn-primary btn-sm">+</button>
-                </form>
-                <?php foreach ($todos as $t): ?>
-                <div class="todo-item">
-                    <form method="POST" style="display:contents;">
-                        <input type="hidden" name="action" value="toggle_todo"><input type="hidden" name="tab" value="dashboard">
-                        <input type="hidden" name="todo_id" value="<?=$t['id']?>">
-                        <button type="submit" class="todo-check" style="color:<?=$t['status']=='completed'?'var(--primary)':'var(--text-muted)'?>;">
-                            <i class="fas fa-<?=$t['status']=='completed'?'check-circle':'circle'?>"></i>
-                        </button>
-                    </form>
-                    <span class="todo-title <?=$t['status']=='completed'?'done':''?>"><?=sanitize($t['title'])?></span>
+        <div class="admin-topbar"><h1>📊 داشبورد</h1><div class="breadcrumb">خانه / داشبورد</div></div>
+        <div class="admin-inner">
+            <div class="stats-grid">
+                <?php
+                $cards = [
+                    ['bg'=>'#eff6ff','icon'=>'👥','num'=>number_format($stats['users']),'label'=>'کل کاربران','sub'=>$stats['new_today'].' جدید امروز'],
+                    ['bg'=>'#f0fdf4','icon'=>'🟢','num'=>number_format($stats['active_users']),'label'=>'کاربران فعال','sub'=>'۳۰ روز گذشته'],
+                    ['bg'=>'#faf5ff','icon'=>'👤','num'=>number_format($stats['customers']),'label'=>'مشتریان CRM','sub'=>''],
+                    ['bg'=>'#fff7ed','icon'=>'💬','num'=>number_format($stats['messages']),'label'=>'پیام امروز','sub'=>''],
+                    ['bg'=>'#fef2f2','icon'=>'🛒','num'=>number_format($stats['orders']),'label'=>'سفارشات هفته','sub'=>''],
+                    ['bg'=>'#fefce8','icon'=>'💰','num'=>number_format($stats['total_credits']),'label'=>'کل اعتبار','sub'=>''],
+                ];
+                foreach ($cards as $c):
+                ?>
+                <div class="stat-card">
+                    <div class="stat-icon" style="background:<?= $c['bg'] ?>"><?= $c['icon'] ?></div>
+                    <div class="stat-info"><div class="num"><?= $c['num'] ?></div><div class="label"><?= $c['label'] ?></div><?php if($c['sub']): ?><div class="sublabel"><?= $c['sub'] ?></div><?php endif; ?></div>
                 </div>
                 <?php endforeach; ?>
             </div>
-            <div class="info-card">
-                <h3>🕒 آخرین فعالیت‌ها</h3>
-                <?php foreach ($recent_logs as $l): ?>
-                <div style="padding:6px 0;border-bottom:1px solid var(--border-light);font-size:0.85rem;">
-                    <strong><?=sanitize($l['full_name']??'سیستم')?></strong>
-                    <span style="color:var(--text-secondary);"> • <?=$l['description']?></span>
-                    <span style="float:left;color:var(--text-muted);font-size:0.75rem;"><?=timeAgo($l['created_at'])?></span>
-                </div>
-                <?php endforeach; ?>
-            </div>
-        </div>
-
-        <!-- ==================== کاربران ==================== -->
-        <?php elseif ($tab === 'users'): ?>
-        <div class="admin-header">
-            <div>
-                <div class="breadcrumb"><a href="?tab=dashboard">پنل مدیریت</a> / کاربران</div>
-                <h1>👥 مدیریت کاربران</h1>
-            </div>
-        </div>
-
-        <div class="table-wrapper">
-            <div class="table-header">
-                <h3>لیست کاربران (<?=$total?>)</h3>
-                <form method="GET" class="search-box">
-                    <input type="hidden" name="tab" value="users">
-                    <input type="text" name="search" value="<?=htmlspecialchars($search)?>" placeholder="🔍 جستجوی نام، موبایل یا ایمیل...">
-                    <button type="submit" class="btn btn-primary btn-sm">جستجو</button>
-                </form>
-            </div>
-            <div class="table-responsive">
-                <table>
-                    <thead><tr><th>#</th><th>نام</th><th>موبایل</th><th>ایمیل</th><th>اعتبار</th><th>کیف پول</th><th>وضعیت</th><th>عملیات</th></tr></thead>
-                    <tbody>
-                        <?php if (empty($data)): ?>
-                        <tr><td colspan="8" style="text-align:center;padding:40px;">😔 هیچ کاربری یافت نشد</td></tr>
-                        <?php else: foreach ($data as $u): ?>
-                        <tr>
-                            <td><?=$u['id']?></td>
-                            <td><a href="?tab=user_detail&user_id=<?=$u['id']?>" style="color:var(--primary);font-weight:600;"><?=sanitize($u['full_name'])?></a></td>
-                            <td dir="ltr" style="text-align:left;"><?=$u['phone']?></td>
-                            <td><?=$u['email'] ?: '<span style="color:var(--text-muted);">---</span>'?></td>
-                            <td><?=number_format($u['credits'])?></td>
-                            <td><?=number_format($u['wallet_balance']??0)?> تومان</td>
-                            <td><span class="badge <?=$u['is_active']?'badge-success':'badge-danger'?>"><?=$u['is_active']?'فعال':'غیرفعال'?></span></td>
-                            <td>
-                                <a href="?tab=user_detail&user_id=<?=$u['id']?>" class="btn btn-sm btn-outline">✏️</a>
-                                <form method="POST" style="display:contents;">
-                                    <input type="hidden" name="action" value="toggle_user"><input type="hidden" name="tab" value="users">
-                                    <input type="hidden" name="user_id" value="<?=$u['id']?>">
-                                    <button type="submit" class="btn btn-sm <?=$u['is_active']?'btn-outline':'btn-primary'?>"><?=$u['is_active']?'غیرفعال':'فعال'?></button>
-                                </form>
-                            </td>
-                        </tr>
-                        <?php endforeach; endif; ?>
-                    </tbody>
-                </table>
-            </div>
-            <?php if ($total > $per_page): ?>
-            <div class="pagination">
-                <?php for ($i = 1; $i <= ceil($total / $per_page); $i++): ?>
-                <a href="?tab=users&page=<?=$i?>&search=<?=urlencode($search)?>" class="<?=$i==$page_num?'active':''?>"><?=$i?></a>
-                <?php endfor; ?>
-            </div>
-            <?php endif; ?>
-        </div>
-
-        <!-- ==================== جزئیات کاربر ==================== -->
-        <?php elseif ($tab === 'user_detail'): ?>
-        <div class="admin-header">
-            <div>
-                <div class="breadcrumb"><a href="?tab=dashboard">پنل مدیریت</a> / <a href="?tab=users">کاربران</a> / <?=sanitize($data['full_name'])?></div>
-                <h1>👤 <?=sanitize($data['full_name'])?></h1>
-            </div>
-        </div>
-
-        <div class="grid-2">
-            <div class="info-card">
-                <h3>📝 ویرایش اطلاعات</h3>
-                <form method="POST">
-                    <input type="hidden" name="action" value="edit_user"><input type="hidden" name="tab" value="user_detail">
-                    <input type="hidden" name="user_id" value="<?=$data['id']?>">
-                    <div class="form-group"><label>نام کامل</label><input type="text" name="full_name" value="<?=sanitize($data['full_name'])?>"></div>
-                    <div class="form-group"><label>ایمیل</label><input type="email" name="email" value="<?=$data['email']??''?>"></div>
-                    <div class="grid-2">
-                        <div class="form-group"><label>اعتبار</label><input type="number" name="credits" value="<?=$data['credits']?>"></div>
-                        <div class="form-group"><label>کیف پول (تومان)</label><input type="number" name="wallet_balance" value="<?=$data['wallet_balance']??0?>"></div>
-                    </div>
-                    <label style="display:flex;align-items:center;gap:6px;margin-bottom:12px;">
-                        <input type="checkbox" name="is_admin" <?=$data['is_admin']?'checked':''?>> دسترسی ادمین
-                    </label>
-                    <button type="submit" class="btn btn-primary">💾 ذخیره تغییرات</button>
-                </form>
-            </div>
-
-            <div class="info-card">
-                <h3>📊 آمار کاربر</h3>
-                <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
-                    <?php foreach ([['💬','چت‌ها',$user_stats['chats']],['📨','پیام‌ها',$user_stats['messages']],['🛒','سفارشات',$user_stats['orders']],['📋','تسک‌ها',$user_stats['tasks']]] as $s): ?>
-                    <div style="text-align:center;background:var(--bg-secondary);border-radius:10px;padding:12px;">
-                        <div style="font-size:1.4rem;font-weight:700;color:var(--primary);"><?=$s[2]?></div>
-                        <div style="font-size:0.8rem;color:var(--text-muted);"><?=$s[0]?> <?=$s[1]?></div>
+            
+            <?php if (!empty($rank_dist)): ?>
+            <div class="card" style="margin-bottom:24px">
+                <div class="card-header"><h3>🏆 توزیع رنک</h3></div>
+                <div class="card-body" style="padding:20px;display:flex;gap:12px;flex-wrap:wrap;">
+                    <?php foreach ($rank_dist as $r): if(empty($r['r'])) continue; ?>
+                    <div style="flex:1;min-width:100px;text-align:center;padding:16px;border-radius:12px;background:#f8fafc;">
+                        <div style="font-size:28px;"><?= $rank_icons[$r['r']] ?? '🥉' ?></div>
+                        <div style="font-weight:800;font-size:18px;color:<?= $rank_colors[$r['r']] ?? '#92400e' ?>"><?= $r['cnt'] ?></div>
+                        <div style="font-size:12px;color:#64748b;"><?= $r['r'] ?></div>
                     </div>
                     <?php endforeach; ?>
                 </div>
-                <p style="margin-top:12px;">📅 عضویت: <strong><?=date('Y/m/d', strtotime($data['created_at']))?></strong></p>
-                <p>🕐 آخرین ورود: <strong><?=$data['last_login'] ? date('Y/m/d H:i', strtotime($data['last_login'])) : '---'?></strong></p>
+            </div>
+            <?php endif; ?>
+            
+            <?php $recent = $db->query("SELECT * FROM users ORDER BY id DESC LIMIT 5")->fetchAll(); ?>
+            <div class="card">
+                <div class="card-header"><h3>👥 کاربران جدید</h3><a href="/admin/?tab=users" class="btn btn-ghost btn-xs">همه</a></div>
+                <div class="card-body">
+                    <table class="admin-table">
+                        <thead><tr><th>نام</th><th>موبایل</th><th>اعتبار</th><th>رنک</th><th>تاریخ</th></tr></thead>
+                        <tbody>
+                            <?php foreach ($recent as $u): ?>
+                            <tr>
+                                <td><strong><?= htmlspecialchars($u['full_name']) ?></strong></td>
+                                <td><?= $u['phone'] ?></td>
+                                <td><?= number_format($u['credits']) ?></td>
+                                <td><span class="rank-badge rank-<?= $u['rank']??'bronze' ?>"><?= $u['rank']??'bronze' ?></span></td>
+                                <td><?= jalali_date('Y/m/d', strtotime($u['created_at']??'now')) ?></td>
+                            </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </div>
-
-        <!-- ==================== محصولات ==================== -->
-        <?php elseif ($tab === 'products'): ?>
-        <div class="admin-header"><div><div class="breadcrumb"><a href="?tab=dashboard">پنل مدیریت</a> / محصولات</div><h1>📦 مدیریت محصولات</h1></div></div>
-        <div class="info-card">
-            <h3>➕ افزودن محصول</h3>
-            <form method="POST">
-                <input type="hidden" name="action" value="add_product"><input type="hidden" name="tab" value="products">
-                <div class="grid-3">
-                    <input type="text" name="name" placeholder="نام محصول *" required>
-                    <input type="number" name="price" placeholder="قیمت (تومان) *" required>
-                    <select name="type"><option value="service">خدمات</option><option value="goods">کالا</option></select>
+        
+        <?php elseif ($tab === 'users'): ?>
+        <?php
+        $search = $_GET['search'] ?? ''; $rank_f = $_GET['rank'] ?? ''; $status_f = $_GET['status'] ?? '';
+        $q = "SELECT u.*, (SELECT COUNT(*) FROM messages WHERE user_id=u.id) as msg_c, c.id as cid FROM users u LEFT JOIN customers c ON c.phone=u.phone OR c.user_id=u.id WHERE 1=1";
+        $p = [];
+        if ($search) { $q .= " AND (u.full_name LIKE ? OR u.phone LIKE ?)"; $p = ["%$search%", "%$search%"]; }
+        if ($rank_f) { $q .= " AND u.rank = ?"; $p[] = $rank_f; }
+        if ($status_f === 'active') { $q .= " AND u.is_active = 1"; }
+        elseif ($status_f === 'inactive') { $q .= " AND u.is_active = 0"; }
+        $q .= " ORDER BY u.id DESC LIMIT 50";
+        $stmt = $db->prepare($q); $stmt->execute($p); $users = $stmt->fetchAll();
+        ?>
+        <div class="admin-topbar"><h1>👥 کاربران (<?= $stats['users'] ?>)</h1><div class="breadcrumb"><a href="/admin/">خانه</a> / کاربران</div></div>
+        <div class="admin-inner">
+            <form class="toolbar">
+                <input type="hidden" name="tab" value="users">
+                <input type="text" name="search" value="<?= htmlspecialchars($search) ?>" placeholder="🔍 نام یا موبایل...">
+                <select name="rank"><option value="">همه رنک‌ها</option>
+                    <?php foreach (['diamond'=>'👑 الماس','platinum'=>'💎 پلاتین','gold'=>'🥇 طلایی','silver'=>'🥈 نقره','bronze'=>'🥉 برنز'] as $k=>$v): ?>
+                    <option value="<?= $k ?>" <?= $rank_f==$k?'selected':'' ?>><?= $v ?></option><?php endforeach; ?>
+                </select>
+                <select name="status"><option value="">همه</option><option value="active" <?= $status_f=='active'?'selected':'' ?>>🟢 فعال</option><option value="inactive" <?= $status_f=='inactive'?'selected':'' ?>>🔴 غیرفعال</option></select>
+                <button type="submit" class="btn btn-primary btn-xs">🔍</button>
+            </form>
+            <div class="card"><div class="card-body">
+                <table class="admin-table">
+                    <thead><tr><th>#</th><th>نام</th><th>موبایل</th><th>اعتبار</th><th>رنک</th><th>پیام</th><th>وضعیت</th><th>عملیات</th></tr></thead>
+                    <tbody>
+                        <?php foreach ($users as $u): ?>
+                        <tr>
+                            <td><?= $u['id'] ?></td>
+                            <td><strong><?= htmlspecialchars($u['full_name']) ?></strong><?= $u['is_admin']?' <span class="badge" style="background:#f59e0b;color:#fff">ادمین</span>':'' ?><?= $u['cid']?' <span class="badge" style="background:#e0f2fe;color:#0369a1">CRM</span>':'' ?></td>
+                            <td><?= $u['phone']?:'-' ?></td>
+                            <td><?= number_format($u['credits']) ?></td>
+                            <td><span class="rank-badge rank-<?= $u['rank']??'bronze' ?>"><?= $u['rank']??'bronze' ?></span></td>
+                            <td><?= $u['msg_c'] ?></td>
+                            <td><a href="?tab=users&toggle=<?= $u['id'] ?>"><?= $u['is_active']?'🟢':'🔴' ?></a></td>
+                            <td>
+                                <a href="/admin/?tab=user_detail&id=<?= $u['id'] ?>" class="btn-xs btn-view">👁️</a>
+                                <a href="/admin/?tab=user_edit&id=<?= $u['id'] ?>" class="btn-xs btn-edit">✏️</a>
+                                <?php if (!$u['is_admin']): ?><a href="?tab=users&delete=<?= $u['id'] ?>" class="btn-xs btn-danger" onclick="return confirm('حذف؟')">🗑️</a><?php endif; ?>
+                            </td>
+                        </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+            </div></div>
+        </div>
+        
+        <?php elseif ($tab === 'user_detail'): ?>
+        <?php
+        $uid = $_GET['id']??0;
+        $u = $db->prepare("SELECT u.*, (SELECT COUNT(*) FROM messages WHERE user_id=u.id) as msg_c, c.id as cid, c.tags as ctags, c.visit_count FROM users u LEFT JOIN customers c ON c.phone=u.phone OR c.user_id=u.id WHERE u.id=?");
+        $u->execute([$uid]); $user = $u->fetch();
+        if (!$user): ?><div class="admin-inner"><p>کاربر یافت نشد.</p></div>
+        <?php else:
+        $msgs = $db->prepare("SELECT * FROM messages WHERE user_id=? ORDER BY created_at DESC LIMIT 5"); $msgs->execute([$uid]);
+        ?>
+        <div class="admin-topbar"><h1>👤 <?= htmlspecialchars($user['full_name']) ?></h1><div class="breadcrumb"><a href="/admin/">خانه</a> / <a href="/admin/?tab=users">کاربران</a> / <?= htmlspecialchars($user['full_name']) ?><?= isset($_GET['saved'])?' <span style="color:#10b981">✅ ذخیره شد</span>':'' ?></div></div>
+        <div class="admin-inner">
+            <div style="margin-bottom:16px"><a href="/admin/?tab=user_edit&id=<?= $user['id'] ?>" class="btn btn-primary">✏️ ویرایش</a> <a href="/admin/?tab=users" class="btn btn-ghost">← بازگشت</a></div>
+            <div class="detail-grid">
+                <div class="card"><h3>📋 اطلاعات</h3>
+                    <table class="detail-table">
+                        <tr><td>نام</td><td><?= htmlspecialchars($user['full_name']) ?></td></tr>
+                        <tr><td>موبایل</td><td><?= $user['phone']?:'-' ?></td></tr>
+                        <tr><td>ایمیل</td><td><?= $user['email']?:'-' ?></td></tr>
+                        <tr><td>شهر</td><td><?= $user['city']?:'-' ?></td></tr>
+                        <tr><td>تولد</td><td><?= $user['birth_date']?:'-' ?></td></tr>
+                        <tr><td>عضویت</td><td><?= jalali_date('Y/m/d', strtotime($user['created_at']??'now')) ?></td></tr>
+                    </table>
                 </div>
-                <textarea name="description" rows="2" placeholder="توضیحات..." style="width:100%;margin:8px 0;"></textarea>
-                <button type="submit" class="btn btn-primary btn-sm">افزودن</button>
-            </form>
+                <div class="card"><h3>📊 آمار</h3>
+                    <table class="detail-table">
+                        <tr><td>اعتبار</td><td><strong><?= number_format($user['credits']) ?></strong></td></tr>
+                        <tr><td>کیف پول</td><td><?= number_format($user['wallet_balance']??0) ?> ت</td></tr>
+                        <tr><td>رنک</td><td><span class="rank-badge rank-<?= $user['rank']??'bronze' ?>"><?= $user['rank']??'bronze' ?></span></td></tr>
+                        <tr><td>امتیاز</td><td><?= $user['rank_score']??0 ?></td></tr>
+                        <tr><td>پیام‌ها</td><td><?= $user['msg_c'] ?></td></tr>
+                        <tr><td>لاگین</td><td><?= $user['login_count']??0 ?></td></tr>
+                        <tr><td>آخرین</td><td><?= $user['last_login'] ? jalali_date('Y/m/d H:i', strtotime($user['last_login'])) : '-' ?></td></tr>
+                        <tr><td>وضعیت</td><td><?= $user['is_active']?'🟢 فعال':'🔴 غیرفعال' ?></td></tr>
+                    </table>
+                </div>
+            </div>
         </div>
-        <div class="table-wrapper"><div class="table-responsive"><table>
-            <tr><th>#</th><th>نام</th><th>قیمت</th><th>نوع</th><th>موجودی</th></tr>
-            <?php foreach ($data as $p): ?>
-            <tr><td><?=$p['id']?></td><td><?=sanitize($p['name'])?></td><td><?=number_format($p['price'])?></td><td><?=$p['type']=='service'?'خدمات':'کالا'?></td><td><?=$p['stock']?></td></tr>
-            <?php endforeach; ?>
-        </table></div></div>
-
-        <!-- ==================== سفارشات ==================== -->
-        <?php elseif ($tab === 'orders_list'): ?>
-        <div class="admin-header"><div><h1>🛒 سفارشات</h1></div></div>
-        <div class="table-wrapper"><div class="table-responsive"><table>
-            <tr><th>#</th><th>مشتری</th><th>مبلغ</th><th>وضعیت</th><th>تاریخ</th><th>عملیات</th></tr>
-            <?php foreach ($data as $o): ?>
-            <tr>
-                <td><?=$o['id']?></td><td><?=sanitize($o['full_name'])?></td><td><?=number_format($o['total'])?></td>
-                <td><span class="badge <?=$o['status']=='paid'?'badge-success':($o['status']=='pending'?'badge-warning':'badge-info')?>"><?=$o['status']?></span></td>
-                <td><?=date('Y/m/d', strtotime($o['created_at']))?></td>
-                <td>
-                    <form method="POST" style="display:contents;">
-                        <input type="hidden" name="action" value="update_order"><input type="hidden" name="tab" value="orders_list">
-                        <input type="hidden" name="order_id" value="<?=$o['id']?>">
-                        <select name="status" onchange="this.form.submit()">
-                            <?php foreach (['pending'=>'در انتظار','paid'=>'پرداخت','shipped'=>'ارسال','delivered'=>'تحویل','cancelled'=>'لغو'] as $k=>$v): ?>
-                            <option value="<?=$k?>" <?=$o['status']==$k?'selected':''?>><?=$v?></option>
-                            <?php endforeach; ?>
-                        </select>
-                    </form>
-                </td>
-            </tr>
-            <?php endforeach; ?>
-        </table></div></div>
-
-        <!-- ==================== تنظیمات ==================== -->
-        <?php elseif ($tab === 'settings'): ?>
-        <div class="admin-header"><div><h1>⚙️ تنظیمات سیستم</h1></div></div>
-        <div class="info-card" style="max-width:500px;">
-            <form method="POST">
-                <input type="hidden" name="action" value="update_settings"><input type="hidden" name="tab" value="settings">
-                <div class="form-group"><label>🔑 API Key</label><input type="text" name="settings[deepseek_api_key]" value="<?=$data['deepseek_api_key']??''?>" style="direction:ltr;"></div>
-                <div class="form-group"><label>🎁 اعتبار هدیه</label><input type="number" name="settings[max_free_credits]" value="<?=$data['max_free_credits']??'1000'?>"></div>
-                <div class="form-group"><label>⏱️ محدودیت/ساعت</label><input type="number" name="settings[rate_limit_per_hour]" value="<?=$data['rate_limit_per_hour']??'20'?>"></div>
-                <button type="submit" class="btn btn-primary">💾 ذخیره</button>
-            </form>
-        </div>
-
-        <!-- ==================== بقیه ==================== -->
-        <?php else: ?>
-        <div class="admin-header"><div><h1><?=$tab?></h1></div></div>
-        <div class="table-wrapper"><div class="table-responsive"><table>
-            <?php if (!empty($data)): ?>
-            <tr><?php foreach (array_keys($data[0]) as $k): ?><th><?=$k?></th><?php endforeach; ?></tr>
-            <?php foreach ($data as $row): ?>
-            <tr><?php foreach ($row as $v): ?><td><?=sanitize((string)$v)?></td><?php endforeach; ?></tr>
-            <?php endforeach; ?>
-            <?php endif; ?>
-        </table></div></div>
         <?php endif; ?>
-    </main>
+        
+        <?php elseif ($tab === 'user_edit'): ?>
+        <?php
+        $uid = $_GET['id']??0;
+        $u = $db->prepare("SELECT * FROM users WHERE id=?"); $u->execute([$uid]); $user = $u->fetch();
+        if (!$user): ?><div class="admin-inner"><p>کاربر یافت نشد.</p></div>
+        <?php else: ?>
+        <div class="admin-topbar"><h1>✏️ <?= htmlspecialchars($user['full_name']) ?></h1><div class="breadcrumb"><a href="/admin/">خانه</a> / <a href="/admin/?tab=users">کاربران</a> / ویرایش</div></div>
+        <div class="admin-inner">
+            <div class="card" style="max-width:700px;padding:24px">
+                <form method="POST">
+                    <div class="form-grid">
+                        <div class="form-group"><label>👤 نام</label><input type="text" name="full_name" value="<?= htmlspecialchars($user['full_name']) ?>" required></div>
+                        <div class="form-group"><label>📱 موبایل</label><input type="text" name="phone" value="<?= $user['phone'] ?>"></div>
+                        <div class="form-group"><label>📧 ایمیل</label><input type="email" name="email" value="<?= $user['email'] ?>"></div>
+                        <div class="form-group"><label>🏙️ شهر</label><input type="text" name="city" value="<?= $user['city'] ?>"></div>
+                        <div class="form-group"><label>🎂 تولد</label><input type="date" name="birth_date" value="<?= $user['birth_date'] ?>"></div>
+                        <div class="form-group"><label>⭐ رنک</label><select name="rank"><?php foreach (['diamond'=>'👑 الماس','platinum'=>'💎 پلاتین','gold'=>'🥇 طلایی','silver'=>'🥈 نقره','bronze'=>'🥉 برنز'] as $k=>$v): ?><option value="<?= $k ?>" <?= ($user['rank']??'bronze')==$k?'selected':'' ?>><?= $v ?></option><?php endforeach; ?></select></div>
+                        <div class="form-group"><label>💰 اعتبار</label><input type="number" name="credits" value="<?= $user['credits'] ?>"></div>
+                        <div class="form-group"><label>🏆 امتیاز</label><input type="number" name="rank_score" value="<?= $user['rank_score']??0 ?>"></div>
+                        <div class="form-group"><label>💳 کیف پول</label><input type="number" name="wallet_balance" value="<?= $user['wallet_balance']??0 ?>"></div>
+                        <div class="form-group full"><label>📝 بیو</label><textarea name="bio" rows="2"><?= htmlspecialchars($user['bio']??'') ?></textarea></div>
+                        <div class="form-group"><label class="checkbox-label"><input type="checkbox" name="is_active" <?= $user['is_active']?'checked':'' ?>> 🟢 فعال</label></div>
+                        <div class="form-group"><label class="checkbox-label"><input type="checkbox" name="is_admin" <?= $user['is_admin']?'checked':'' ?>> 👑 ادمین</label></div>
+                    </div>
+                    <button type="submit" class="btn btn-primary" style="margin-top:20px">💾 ذخیره</button>
+                </form>
+            </div>
+        </div>
+        <?php endif; ?>
+        
+        <?php elseif ($tab === 'customers'): ?>
+        <?php
+        $search = $_GET['search'] ?? ''; $rank = $_GET['rank'] ?? '';
+        $q = "SELECT * FROM customers WHERE 1=1"; $p = [];
+        if ($search) { $q .= " AND (full_name LIKE ? OR phone LIKE ?)"; $p = ["%$search%", "%$search%"]; }
+        if ($rank) { $q .= " AND rank = ?"; $p[] = $rank; }
+        $q .= " ORDER BY id DESC LIMIT 50";
+        $stmt = $db->prepare($q); $stmt->execute($p); $customers = $stmt->fetchAll();
+        ?>
+        <div class="admin-topbar"><h1>👤 مشتریان CRM</h1><div class="breadcrumb"><a href="/admin/">خانه</a> / مشتریان</div></div>
+        <div class="admin-inner">
+            <div style="display:flex;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px">
+                <form class="toolbar" style="margin:0"><input type="hidden" name="tab" value="customers"><input type="text" name="search" value="<?= htmlspecialchars($search) ?>" placeholder="🔍 جستجو..."><select name="rank"><option value="">همه</option><?php foreach (['diamond'=>'👑','platinum'=>'💎','gold'=>'🥇','silver'=>'🥈','bronze'=>'🥉'] as $k=>$v): ?><option value="<?= $k ?>" <?= $rank==$k?'selected':'' ?>><?= $v ?></option><?php endforeach; ?></select><button type="submit" class="btn btn-primary btn-xs">🔍</button></form>
+                <a href="/admin/crm/add.php" class="btn btn-primary">➕ جدید</a>
+            </div>
+            <div class="card"><div class="card-body">
+                <table class="admin-table">
+                    <thead><tr><th>نام</th><th>موبایل</th><th>تگ‌ها</th><th>رنک</th><th>بازدید</th><th>عملیات</th></tr></thead>
+                    <tbody>
+                        <?php foreach ($customers as $c): ?>
+                        <tr><td><strong><?= htmlspecialchars($c['full_name']) ?></strong></td><td><?= $c['phone']?:'-' ?></td><td><?= $c['tags']?:'-' ?></td><td><span class="rank-badge rank-<?= $c['rank'] ?>"><?= $c['rank'] ?></span></td><td><?= $c['visit_count'] ?></td>
+                        <td><a href="/admin/crm/view.php?id=<?= $c['id'] ?>" class="btn-xs btn-view">👁️</a><a href="/admin/crm/edit.php?id=<?= $c['id'] ?>" class="btn-xs btn-edit">✏️</a><a href="?tab=customers&delete=<?= $c['id'] ?>" class="btn-xs btn-danger" onclick="return confirm('حذف؟')">🗑️</a></td></tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+            </div></div>
+        </div>
+        
+        <?php else: ?>
+        <div class="admin-topbar"><h1>📄 <?= $tab ?></h1></div>
+        <div class="admin-inner"><div class="empty-state"><div class="icon">🚧</div><h3>به زودی...</h3></div></div>
+        <?php endif; ?>
+    </div>
 </div>
 
-<?php require_once $_SERVER['DOCUMENT_ROOT'] . '/includes/footer.php'; ?>
+<?php 
+require_once __DIR__ . '/../includes/footer.php'; 
+ob_end_flush();

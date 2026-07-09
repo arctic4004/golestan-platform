@@ -1,4 +1,5 @@
 <?php
+// api/chat/CloudflareAPI.php
 class CloudflareAPI {
     private $api_token;
     private $account_id = '66b43b4fe65858aebd524af96cd93d54';
@@ -22,15 +23,29 @@ class CloudflareAPI {
                 return $result['setting_value'];
             }
         } catch (Exception $e) {}
-        
         return '';
     }
     
     public function sendMessage($message, $history = [], $model = null, $options = []) {
-        $system_prompt = "شما دستیار هوشمند کافی‌نت گلستان هستید. همیشه به فارسی روان، دقیق و مفید پاسخ دهید. پاسخ‌هایتان را با ایموجی زیباتر کنید. نام کاربر را نمی‌دانید.";
+        $think_mode = $options['think'] ?? false;
+        $search_mode = $options['search'] ?? false;
+        
+        // System prompt پایه
+        $system_prompt = "شما دستیار هوشمند کافی‌نت گلستان در یاسوج هستید. همیشه به فارسی روان، دقیق و کامل پاسخ دهید. پاسخ‌هایتان را با ایموجی‌های مرتبط زیباتر کنید.";
+        
+        // حالت Think
+        if ($think_mode) {
+            $system_prompt .= "\n\n⚠️ **حالت تفکر عمیق فعال است.** قبل از پاسخ نهایی، فرآیند فکری خود را گام به گام توضیح بده:\n💭 **تحلیل:** سوال را تحلیل کن\n🧠 **استدلال:** گام‌های منطقی را بگو\n✅ **پاسخ نهایی:** جواب اصلی را بده";
+        }
+        
+        // حالت Search
+        if ($search_mode) {
+            $system_prompt .= "\n\n🌐 **حالت جستجو فعال است.** طوری پاسخ بده که انگار به اینترنت دسترسی داری و اطلاعاتت کاملاً به‌روز است. اگر چیزی را نمی‌دانی، صادقانه بگو.";
+        }
         
         $messages = [['role' => 'system', 'content' => $system_prompt]];
         
+        // تاریخچه
         $recent = array_slice($history, -5);
         foreach ($recent as $msg) {
             $role = $msg['role'] === 'assistant' ? 'assistant' : 'user';
@@ -39,9 +54,11 @@ class CloudflareAPI {
         
         $messages[] = ['role' => 'user', 'content' => $message];
         
-        $url = "https://api.cloudflare.com/client/v4/accounts/{$this->account_id}/ai/run/{$this->model}";
+        // تنظیمات بر اساس حالت
+        $max_tokens = $think_mode ? 2500 : 1500;
+        $temperature = $think_mode ? 0.3 : 0.7;
         
-        $ch = curl_init($url);
+        $ch = curl_init("https://api.cloudflare.com/client/v4/accounts/{$this->account_id}/ai/run/{$this->model}");
         curl_setopt_array($ch, [
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_POST => true,
@@ -51,10 +68,10 @@ class CloudflareAPI {
             ],
             CURLOPT_POSTFIELDS => json_encode([
                 'messages' => $messages,
-                'max_tokens' => 1500,
-                'temperature' => 0.7
+                'max_tokens' => $max_tokens,
+                'temperature' => $temperature
             ]),
-            CURLOPT_TIMEOUT => 60,
+            CURLOPT_TIMEOUT => 90,
             CURLOPT_SSL_VERIFYPEER => false
         ]);
         
@@ -64,20 +81,15 @@ class CloudflareAPI {
         curl_close($ch);
         
         if ($curl_error) {
-            throw new Exception('Connection error: ' . $curl_error);
+            throw new Exception('خطای اتصال: ' . $curl_error);
         }
         
         if ($http_code !== 200) {
             $error = json_decode($response, true);
-            $error_msg = $error['errors'][0]['message'] ?? "HTTP $http_code";
-            throw new Exception($error_msg);
+            throw new Exception($error['errors'][0]['message'] ?? "HTTP $http_code");
         }
         
         $result = json_decode($response, true);
-        
-        if (!isset($result['result']['response'])) {
-            throw new Exception('Invalid API response');
-        }
         
         return [
             'content' => $result['result']['response'],

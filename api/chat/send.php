@@ -1,5 +1,5 @@
 <?php
-// api/chat/send.php
+// api/chat/send.php - نسخه کامل با Knowledge Base
 header('Content-Type: application/json; charset=utf-8');
 session_start();
 
@@ -15,11 +15,11 @@ if (!$auth->isLoggedIn()) {
     exit;
 }
 
-// Rate limiting
 $database = new Database();
 $db = $database->getConnection();
 $user = $auth->getUser();
 
+// Rate limiting
 $stmt = $db->prepare("SELECT COUNT(*) as count FROM messages WHERE user_id = ? AND created_at > DATE_SUB(NOW(), INTERVAL 1 HOUR)");
 $stmt->execute([$_SESSION['user_id']]);
 $hourly_messages = $stmt->fetch()['count'];
@@ -50,6 +50,44 @@ if (empty($message)) {
     exit;
 }
 
+// ========== Knowledge Base ==========
+$knowledge_context = '';
+$kb_file = $_SERVER['DOCUMENT_ROOT'] . '/knowledge/cafenet_knowledge.json';
+
+if (file_exists($kb_file)) {
+    $kb = json_decode(file_get_contents($kb_file), true);
+    $services = $kb['cafenet_knowledge']['services'] ?? [];
+    
+    $msg_lower = mb_strtolower($message);
+    $matched = [];
+    
+    foreach ($services as $s) {
+        $all_kw = array_merge($s['keywords'] ?? [], $s['synonyms'] ?? []);
+        $all_kw = array_map('mb_strtolower', $all_kw);
+        
+        foreach ($all_kw as $kw) {
+            if (mb_strpos($msg_lower, $kw) !== false) {
+                $matched[$s['id']] = $s;
+                break;
+            }
+        }
+        if (count($matched) >= 5) break;
+    }
+    
+    if (!empty($matched)) {
+        $knowledge_context = "\n\n📋 **اطلاعات خدمات کافی‌نت گلستان:**\n";
+        foreach ($matched as $s) {
+            $knowledge_context .= "• **{$s['service']}** ({$s['category']})\n";
+            $knowledge_context .= "  💰 قیمت: " . number_format($s['price_toman']) . " تومان\n";
+            $knowledge_context .= "  ⏱ زمان: {$s['estimated_time']}\n";
+            $knowledge_context .= "  📄 مدارک: " . implode('، ', $s['documents']) . "\n";
+            if (!empty($s['notes'])) $knowledge_context .= "  💡 {$s['notes']}\n";
+            if (!empty($s['government_system'])) $knowledge_context .= "  🏛 سامانه: {$s['government_system']}\n";
+            $knowledge_context .= "\n";
+        }
+    }
+}
+
 try {
     if (!$conversation_id) {
         $title = mb_substr($message, 0, 50);
@@ -75,10 +113,16 @@ try {
     $stmt->execute([$conversation_id]);
     $history = $stmt->fetchAll();
     
+    // اضافه کردن Knowledge به پیام
+    $ai_message = $message;
+    if (!empty($knowledge_context)) {
+        $ai_message = $message . "\n\n" . $knowledge_context . "\nلطفاً بر اساس اطلاعات بالا پاسخ دقیق بده.";
+    }
+    
     // Send to AI
     require_once __DIR__ . '/DeepSeekAPI.php';
     $ai = new DeepSeekAPI();
-    $response = $ai->sendMessage($message, $history, $model, [
+    $response = $ai->sendMessage($ai_message, $history, $model, [
         'think' => $think,
         'search' => $search
     ]);
@@ -102,7 +146,8 @@ try {
         'success' => true,
         'conversation_id' => $conversation_id,
         'message' => $response_text,
-        'credits_remaining' => $_SESSION['credits'] - $credits_to_deduct
+        'credits_remaining' => $_SESSION['credits'] - $credits_to_deduct,
+        'kb_matches' => count($matched ?? [])
     ]);
     
 } catch (Exception $e) {

@@ -1,5 +1,5 @@
 <?php
-// api/image/tools.php
+// api/image/tools.php - نسخه قدرتمند ابزارها
 header('Content-Type: application/json; charset=utf-8');
 session_start();
 
@@ -8,231 +8,202 @@ require_once __DIR__ . '/../../includes/functions.php';
 
 if (!isset($_SESSION['user_id'])) {
     http_response_code(401);
-    echo json_encode(['error' => 'لطفاً وارد شوید']);
+    echo json_encode(['success' => false, 'error' => 'لطفاً وارد شوید']);
     exit;
 }
 
+$db = (new Database())->getConnection();
+$token = $db->query("SELECT setting_value FROM settings WHERE setting_key = 'deepseek_api_key'")->fetchColumn();
 $account_id = '66b43b4fe65858aebd524af96cd93d54';
-$database = new Database();
-$db = $database->getConnection();
-$stmt = $db->prepare("SELECT setting_value FROM settings WHERE setting_key = ?");
-$stmt->execute(['deepseek_api_key']);
-$api_token = $stmt->fetch()['setting_value'] ?? '';
-
-$action = $_POST['action'] ?? '';
 $upload_dir = $_SERVER['DOCUMENT_ROOT'] . '/uploads';
 
+if (!file_exists($upload_dir)) mkdir($upload_dir, 0755, true);
+
+$action = $_POST['action'] ?? '';
+
 // =============================================
-// ۱. MAGIC COLOR (Inpainting - تغییر رنگ/محتوای ناحیه)
+// تابع کمکی
+// =============================================
+function callAPI($model, $data, $token, $account_id, $is_json = true) {
+    $url = "https://api.cloudflare.com/client/v4/accounts/{$account_id}/ai/run/{$model}";
+    $ch = curl_init($url);
+    curl_setopt_array($ch, [
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_POST => true,
+        CURLOPT_HTTPHEADER => [
+            'Authorization: Bearer ' . $token,
+            'Content-Type: ' . ($is_json ? 'application/json' : 'application/octet-stream')
+        ],
+        CURLOPT_POSTFIELDS => $is_json ? json_encode($data) : $data,
+        CURLOPT_TIMEOUT => 90,
+        CURLOPT_SSL_VERIFYPEER => false
+    ]);
+    $res = curl_exec($ch);
+    $http = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    curl_close($ch);
+    return [$res, $http];
+}
+
+// =============================================
+// ۱. MAGIC COLOR / INPAINTING
 // =============================================
 if ($action === 'magic_color') {
     $image_url = $_POST['image_url'] ?? '';
-    $prompt = $_POST['prompt'] ?? 'change color to red';
-    $mask_data = $_POST['mask'] ?? ''; // base64 mask image
+    $prompt = $_POST['prompt'] ?? 'change color';
+    $mask = $_POST['mask'] ?? '';
     
-    if (empty($image_url) || empty($mask_data)) {
-        echo json_encode(['error' => 'لطفاً عکس و ناحیه مورد نظر را مشخص کنید']);
+    if (empty($image_url) || empty($mask)) {
+        echo json_encode(['success' => false, 'error' => 'عکس و ناحیه مورد نظر الزامی است']);
         exit;
     }
     
     $full_path = $_SERVER['DOCUMENT_ROOT'] . $image_url;
     if (!file_exists($full_path)) {
-        echo json_encode(['error' => 'فایل پیدا نشد']);
+        echo json_encode(['success' => false, 'error' => 'فایل پیدا نشد']);
         exit;
     }
     
-    // خواندن عکس اصلی
-    $image_content = file_get_contents($full_path);
-    $image_base64 = base64_encode($image_content);
+    $image_b64 = base64_encode(file_get_contents($full_path));
+    $mask_b64 = str_replace('data:image/png;base64,', '', $mask);
     
-    // Decode mask
-    $mask_base64 = str_replace('data:image/png;base64,', '', $mask_data);
+    list($response, $http) = callAPI(
+        '@cf/runwayml/stable-diffusion-v1-5-inpainting',
+        ['prompt' => $prompt . ', photorealistic, 8k', 'image' => $image_b64, 'mask' => $mask_b64, 'num_steps' => 25],
+        $token, $account_id
+    );
     
-    // ارسال به Cloudflare Inpainting
-    $url = "https://api.cloudflare.com/client/v4/accounts/{$account_id}/ai/run/@cf/runwayml/stable-diffusion-v1-5-inpainting";
-    
-    $data = [
-        'prompt' => $prompt . ", photorealistic, highly detailed, 8k",
-        'image' => $image_base64,
-        'mask' => $mask_base64,
-        'num_steps' => 25,
-        'strength' => 0.7
-    ];
-    
-    $ch = curl_init($url);
-    curl_setopt_array($ch, [
-        CURLOPT_RETURNTRANSFER => true, CURLOPT_POST => true,
-        CURLOPT_HTTPHEADER => ['Authorization: Bearer ' . $api_token, 'Content-Type: application/json'],
-        CURLOPT_POSTFIELDS => json_encode($data), CURLOPT_TIMEOUT => 90
-    ]);
-    
-    $response = curl_exec($ch);
-    $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-    curl_close($ch);
-    
-    if ($http_code === 200 && strlen($response) > 1000) {
-        $image_name = 'magic_' . time() . '.png';
-        $image_path = $upload_dir . '/' . $image_name;
-        file_put_contents($image_path, $response);
-        
-        echo json_encode(['success' => true, 'image_url' => '/uploads/' . $image_name]);
+    if ($http === 200 && strlen($response) > 1000) {
+        $filename = 'magic_' . time() . '.png';
+        file_put_contents($upload_dir . '/' . $filename, $response);
+        echo json_encode(['success' => true, 'image_url' => '/uploads/' . $filename]);
     } else {
-        echo json_encode(['error' => 'ویرایش انجام نشد. دوباره تلاش کنید.']);
+        echo json_encode(['success' => false, 'error' => 'ویرایش انجام نشد']);
     }
     exit;
 }
 
 // =============================================
-// ۲. حذف بک‌گراند (Background Blur/Remove)
+// ۲. REMOVE BACKGROUND (BLUR)
 // =============================================
 if ($action === 'remove_bg_blur') {
     $image_url = $_POST['image_url'] ?? '';
-    $blur_level = intval($_POST['blur'] ?? 10);
     
     if (empty($image_url)) {
-        echo json_encode(['error' => 'لطفاً عکس را آپلود کنید']);
+        echo json_encode(['success' => false, 'error' => 'عکس الزامی است']);
         exit;
     }
     
     $full_path = $_SERVER['DOCUMENT_ROOT'] . $image_url;
     if (!file_exists($full_path)) {
-        echo json_encode(['error' => 'فایل پیدا نشد']);
+        echo json_encode(['success' => false, 'error' => 'فایل پیدا نشد']);
         exit;
     }
     
-    // استفاده از GD برای محو کردن بک‌گراند (تشخیص سوژه با DETR)
-    $image_content = file_get_contents($full_path);
+    $img = imagecreatefromstring(file_get_contents($full_path));
+    if (!$img) {
+        echo json_encode(['success' => false, 'error' => 'فرمت عکس پشتیبانی نمیشود']);
+        exit;
+    }
     
-    // تشخیص اشیاء اصلی
-    $ch = curl_init("https://api.cloudflare.com/client/v4/accounts/{$account_id}/ai/run/@cf/facebook/detr-resnet-50");
-    curl_setopt_array($ch, [
-        CURLOPT_RETURNTRANSFER => true, CURLOPT_POST => true,
-        CURLOPT_HTTPHEADER => ['Authorization: Bearer ' . $api_token, 'Content-Type: application/octet-stream'],
-        CURLOPT_POSTFIELDS => $image_content, CURLOPT_TIMEOUT => 30
-    ]);
-    $res = curl_exec($ch); curl_close($ch);
+    $w = imagesx($img);
+    $h = imagesy($img);
+    
+    // تشخیص سوژه با Cloudflare
+    list($res) = callAPI('@cf/facebook/detr-resnet-50', file_get_contents($full_path), $token, $account_id, false);
     $objects = json_decode($res, true)['result'] ?? [];
     
-    // پیدا کردن بزرگترین شیء (سوژه اصلی)
-    $main_object = null;
+    // پیدا کردن بزرگترین شیء
+    $main = null;
     $max_area = 0;
     foreach ($objects as $obj) {
         if ($obj['score'] > 0.5) {
             $area = ($obj['box']['xmax'] - $obj['box']['xmin']) * ($obj['box']['ymax'] - $obj['box']['ymin']);
-            if ($area > $max_area) {
-                $max_area = $area;
-                $main_object = $obj;
-            }
+            if ($area > $max_area) { $max_area = $area; $main = $obj; }
         }
     }
     
-    // ایجاد عکس با بک‌گراند محو
-    $img = imagecreatefromstring($image_content);
-    $width = imagesx($img);
-    $height = imagesy($img);
+    // Blur کل عکس
+    $blurred = imagecreatetruecolor($w, $h);
+    imagecopy($blurred, $img, 0, 0, 0, 0, $w, $h);
+    for ($i = 0; $i < 15; $i++) imagefilter($blurred, IMG_FILTER_GAUSSIAN_BLUR);
     
-    // اگر شیء اصلی پیدا شد، اطرافش رو blur کن
-    if ($main_object) {
-        $box = $main_object['box'];
-        $x1 = max(0, $box['xmin'] - 20);
-        $y1 = max(0, $box['ymin'] - 20);
-        $x2 = min($width, $box['xmax'] + 20);
-        $y2 = min($height, $box['ymax'] + 20);
-        
-        // ایجاد نسخه blur شده از کل عکس
-        $blurred = imagecreatefromstring($image_content);
-        for ($i = 0; $i < $blur_level; $i++) {
-            imagefilter($blurred, IMG_FILTER_GAUSSIAN_BLUR);
-        }
-        
-        // جایگذاری سوژه اصلی روی عکس blur شده
+    // اگر سوژه پیدا شد، جایگذاری کن
+    if ($main) {
+        $x1 = max(0, $main['box']['xmin'] - 10);
+        $y1 = max(0, $main['box']['ymin'] - 10);
+        $x2 = min($w, $main['box']['xmax'] + 10);
+        $y2 = min($h, $main['box']['ymax'] + 10);
         imagecopy($blurred, $img, $x1, $y1, $x1, $y1, $x2 - $x1, $y2 - $y1);
-        $img = $blurred;
     }
     
-    $image_name = 'blurred_' . time() . '.png';
-    $image_path = $upload_dir . '/' . $image_name;
-    imagepng($img, $image_path);
+    $filename = 'blurred_' . time() . '.png';
+    imagepng($blurred, $upload_dir . '/' . $filename);
     imagedestroy($img);
+    imagedestroy($blurred);
     
-    echo json_encode([
-        'success' => true,
-        'image_url' => '/uploads/' . $image_name,
-        'objects_found' => count($objects)
-    ]);
+    echo json_encode(['success' => true, 'image_url' => '/uploads/' . $filename, 'objects_found' => count($objects)]);
     exit;
 }
 
 // =============================================
-// ۳. تبدیل عکس به PDF
+// ۳. IMAGE TO PDF
 // =============================================
 if ($action === 'image_to_pdf') {
-    $image_urls = $_POST['image_urls'] ?? ''; // می‌تواند JSON array باشد
+    $urls = json_decode($_POST['image_urls'] ?? '[]', true) ?: [$_POST['image_url'] ?? ''];
+    $urls = array_filter($urls);
     
-    if (empty($image_urls)) {
-        echo json_encode(['error' => 'لطفاً حداقل یک عکس انتخاب کنید']);
+    if (empty($urls)) {
+        echo json_encode(['success' => false, 'error' => 'حداقل یک عکس انتخاب کنید']);
         exit;
     }
     
-    $urls = json_decode($image_urls, true);
-    if (!is_array($urls)) $urls = [$image_urls];
-    
-    // استفاده از Imagick برای تبدیل
     if (!class_exists('Imagick')) {
-        echo json_encode(['error' => 'کتابخانه Imagick نصب نیست']);
+        // روش جایگزین با GD
+        echo json_encode(['success' => false, 'error' => 'کتابخانه Imagick نصب نیست. لطفاً با پشتیبانی تماس بگیرید.']);
         exit;
     }
     
     $pdf = new Imagick();
     foreach ($urls as $url) {
-        $full_path = $_SERVER['DOCUMENT_ROOT'] . $url;
-        if (file_exists($full_path)) {
-            $pdf->readImage($full_path);
-        }
+        $path = $_SERVER['DOCUMENT_ROOT'] . $url;
+        if (file_exists($path)) $pdf->readImage($path);
     }
     
-    $pdf_name = 'converted_' . time() . '.pdf';
-    $pdf_path = $upload_dir . '/' . $pdf_name;
-    $pdf->writeImages($pdf_path, true);
+    $filename = 'pdf_' . time() . '.pdf';
+    $pdf->writeImages($upload_dir . '/' . $filename, true);
     $pdf->clear();
     
-    echo json_encode(['success' => true, 'pdf_url' => '/uploads/' . $pdf_name]);
+    echo json_encode(['success' => true, 'pdf_url' => '/uploads/' . $filename]);
     exit;
 }
 
 // =============================================
-// ۴. تبدیل PDF به عکس
+// ۴. PDF TO IMAGE
 // =============================================
 if ($action === 'pdf_to_image') {
     $pdf_url = $_POST['pdf_url'] ?? '';
     
-    if (empty($pdf_url)) {
-        echo json_encode(['error' => 'لطفاً فایل PDF را آپلود کنید']);
+    if (empty($pdf_url) || !class_exists('Imagick')) {
+        echo json_encode(['success' => false, 'error' => 'امکان تبدیل وجود ندارد']);
         exit;
     }
     
-    if (!class_exists('Imagick')) {
-        echo json_encode(['error' => 'کتابخانه Imagick نصب نیست']);
-        exit;
-    }
-    
-    $full_path = $_SERVER['DOCUMENT_ROOT'] . $pdf_url;
-    if (!file_exists($full_path)) {
-        echo json_encode(['error' => 'فایل PDF پیدا نشد']);
+    $path = $_SERVER['DOCUMENT_ROOT'] . $pdf_url;
+    if (!file_exists($path)) {
+        echo json_encode(['success' => false, 'error' => 'فایل پیدا نشد']);
         exit;
     }
     
     $imagick = new Imagick();
-    $imagick->readImage($full_path);
+    $imagick->readImage($path);
     $pages = $imagick->getNumberImages();
     
     $images = [];
-    for ($i = 0; $i < $pages; $i++) {
+    for ($i = 0; $i < min($pages, 10); $i++) {
         $imagick->setIteratorIndex($i);
-        $image_name = 'pdf_page_' . time() . '_' . $i . '.jpg';
-        $image_path = $upload_dir . '/' . $image_name;
-        $imagick->writeImage($image_path);
-        $images[] = '/uploads/' . $image_name;
+        $fname = 'pdfpage_' . time() . '_' . $i . '.jpg';
+        $imagick->writeImage($upload_dir . '/' . $fname);
+        $images[] = '/uploads/' . $fname;
     }
     $imagick->clear();
     
@@ -241,7 +212,7 @@ if ($action === 'pdf_to_image') {
 }
 
 // =============================================
-// ۵. CROP (برش عکس)
+// ۵. CROP
 // =============================================
 if ($action === 'crop') {
     $image_url = $_POST['image_url'] ?? '';
@@ -251,55 +222,60 @@ if ($action === 'crop') {
     $h = intval($_POST['h'] ?? 100);
     
     if (empty($image_url)) {
-        echo json_encode(['error' => 'لطفاً عکس را مشخص کنید']);
+        echo json_encode(['success' => false, 'error' => 'عکس الزامی است']);
         exit;
     }
     
-    $full_path = $_SERVER['DOCUMENT_ROOT'] . $image_url;
-    if (!file_exists($full_path)) {
-        echo json_encode(['error' => 'فایل پیدا نشد']);
+    $path = $_SERVER['DOCUMENT_ROOT'] . $image_url;
+    if (!file_exists($path)) {
+        echo json_encode(['success' => false, 'error' => 'فایل پیدا نشد']);
         exit;
     }
     
-    $img = imagecreatefromstring(file_get_contents($full_path));
+    $img = imagecreatefromstring(file_get_contents($path));
     $cropped = imagecrop($img, ['x' => $x, 'y' => $y, 'width' => $w, 'height' => $h]);
     
-    $image_name = 'crop_' . time() . '.png';
-    $image_path = $upload_dir . '/' . $image_name;
-    imagepng($cropped, $image_path);
+    if (!$cropped) {
+        echo json_encode(['success' => false, 'error' => 'مختصات برش نامعتبر است']);
+        exit;
+    }
+    
+    $filename = 'crop_' . time() . '.png';
+    imagepng($cropped, $upload_dir . '/' . $filename);
     imagedestroy($img);
     imagedestroy($cropped);
     
-    echo json_encode(['success' => true, 'image_url' => '/uploads/' . $image_name]);
+    echo json_encode(['success' => true, 'image_url' => '/uploads/' . $filename]);
     exit;
 }
 
 // =============================================
-// ۶. ROTATE/FLIP
+// ۶. ROTATE
 // =============================================
 if ($action === 'rotate') {
     $image_url = $_POST['image_url'] ?? '';
     $angle = intval($_POST['angle'] ?? 90);
     
     if (empty($image_url)) {
-        echo json_encode(['error' => 'لطفاً عکس را مشخص کنید']);
+        echo json_encode(['success' => false, 'error' => 'عکس الزامی است']);
         exit;
     }
     
-    $full_path = $_SERVER['DOCUMENT_ROOT'] . $image_url;
-    if (!file_exists($full_path)) {
-        echo json_encode(['error' => 'فایل پیدا نشد']);
+    $path = $_SERVER['DOCUMENT_ROOT'] . $image_url;
+    if (!file_exists($path)) {
+        echo json_encode(['success' => false, 'error' => 'فایل پیدا نشد']);
         exit;
     }
     
-    $img = imagecreatefromstring(file_get_contents($full_path));
+    $img = imagecreatefromstring(file_get_contents($path));
     $rotated = imagerotate($img, $angle, 0);
     
-    $image_name = 'rotate_' . time() . '.png';
-    $image_path = $upload_dir . '/' . $image_name;
-    imagepng($rotated, $image_path);
+    $filename = 'rotate_' . time() . '.png';
+    imagepng($rotated, $upload_dir . '/' . $filename);
+    imagedestroy($img);
+    imagedestroy($rotated);
     
-    echo json_encode(['success' => true, 'image_url' => '/uploads/' . $image_name]);
+    echo json_encode(['success' => true, 'image_url' => '/uploads/' . $filename]);
     exit;
 }
 
@@ -311,34 +287,37 @@ if ($action === 'watermark') {
     $text = $_POST['text'] ?? SITE_NAME;
     
     if (empty($image_url)) {
-        echo json_encode(['error' => 'لطفاً عکس را مشخص کنید']);
+        echo json_encode(['success' => false, 'error' => 'عکس الزامی است']);
         exit;
     }
     
-    $full_path = $_SERVER['DOCUMENT_ROOT'] . $image_url;
-    if (!file_exists($full_path)) {
-        echo json_encode(['error' => 'فایل پیدا نشد']);
+    $path = $_SERVER['DOCUMENT_ROOT'] . $image_url;
+    if (!file_exists($path)) {
+        echo json_encode(['success' => false, 'error' => 'فایل پیدا نشد']);
         exit;
     }
     
-    $img = imagecreatefromstring(file_get_contents($full_path));
-    $width = imagesx($img);
-    $height = imagesy($img);
+    $img = imagecreatefromstring(file_get_contents($path));
+    $w = imagesx($img);
+    $h = imagesy($img);
     
-    // تنظیمات واترمارک
-    $color = imagecolorallocatealpha($img, 255, 255, 255, 80);
-    $font_size = max(12, $width / 20);
-    $x = $width / 2;
-    $y = $height - 20;
+    $color = imagecolorallocatealpha($img, 255, 255, 255, 70);
+    $fontSize = max(10, intval($w / 25));
+    $x = intval($w / 2 - strlen($text) * $fontSize / 3);
+    $y = $h - 30;
     
-    // استفاده از فونت پیش‌فرض
-    imagettftext($img, $font_size, 0, $x - (strlen($text) * $font_size / 3), $y, $color, '/home/golestanyasujir/public_html/assets/fonts/Vazir.ttf', $text);
+    $fontPath = $_SERVER['DOCUMENT_ROOT'] . '/assets/fonts/Vazir.ttf';
+    if (file_exists($fontPath)) {
+        imagettftext($img, $fontSize, 0, $x, $y, $color, $fontPath, $text);
+    } else {
+        imagestring($img, 5, $x, $y, $text, $color);
+    }
     
-    $image_name = 'watermark_' . time() . '.png';
-    $image_path = $upload_dir . '/' . $image_name;
-    imagepng($img, $image_path);
+    $filename = 'wm_' . time() . '.png';
+    imagepng($img, $upload_dir . '/' . $filename);
+    imagedestroy($img);
     
-    echo json_encode(['success' => true, 'image_url' => '/uploads/' . $image_name]);
+    echo json_encode(['success' => true, 'image_url' => '/uploads/' . $filename]);
     exit;
 }
 
@@ -347,35 +326,38 @@ if ($action === 'watermark') {
 // =============================================
 if ($action === 'compress') {
     $image_url = $_POST['image_url'] ?? '';
-    $quality = intval($_POST['quality'] ?? 60);
+    $quality = max(10, min(100, intval($_POST['quality'] ?? 70)));
     
     if (empty($image_url)) {
-        echo json_encode(['error' => 'لطفاً عکس را مشخص کنید']);
+        echo json_encode(['success' => false, 'error' => 'عکس الزامی است']);
         exit;
     }
     
-    $full_path = $_SERVER['DOCUMENT_ROOT'] . $image_url;
-    if (!file_exists($full_path)) {
-        echo json_encode(['error' => 'فایل پیدا نشد']);
+    $path = $_SERVER['DOCUMENT_ROOT'] . $image_url;
+    if (!file_exists($path)) {
+        echo json_encode(['success' => false, 'error' => 'فایل پیدا نشد']);
         exit;
     }
     
-    $img = imagecreatefromstring(file_get_contents($full_path));
-    $image_name = 'compress_' . time() . '.jpg';
-    $image_path = $upload_dir . '/' . $image_name;
-    imagejpeg($img, $image_path, $quality);
+    $originalSize = filesize($path);
+    $img = imagecreatefromstring(file_get_contents($path));
     
-    $original_size = filesize($full_path);
-    $new_size = filesize($image_path);
+    $filename = 'compressed_' . time() . '.jpg';
+    imagejpeg($img, $upload_dir . '/' . $filename, $quality);
+    $newSize = filesize($upload_dir . '/' . $filename);
+    imagedestroy($img);
     
     echo json_encode([
         'success' => true,
-        'image_url' => '/uploads/' . $image_name,
-        'original_size' => $original_size,
-        'new_size' => $new_size,
-        'saved' => round((1 - $new_size / $original_size) * 100)
+        'image_url' => '/uploads/' . $filename,
+        'original_size' => $originalSize,
+        'new_size' => $newSize,
+        'saved_percent' => $originalSize > 0 ? round((1 - $newSize / $originalSize) * 100) : 0
     ]);
     exit;
 }
 
-echo json_encode(['error' => 'عملیات نامشخص']);
+// =============================================
+// ACTION نامعتبر
+// =============================================
+echo json_encode(['success' => false, 'error' => 'عملیات نامشخص']);

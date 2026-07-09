@@ -1,182 +1,213 @@
 <?php
-session_start();
 require_once __DIR__ . '/config/constants.php';
-require_once __DIR__ . '/config/database.php';
-
-// تولید CSRF token
-if (empty($_SESSION['csrf_token'])) {
-    $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
-}
-
-function isLoggedInLogin()
-{
-    return isset($_SESSION['user_id']) && !empty($_SESSION['user_id']);
-}
-function sanitizeLogin($data)
-{
-    return htmlspecialchars(strip_tags(trim($data)), ENT_QUOTES, 'UTF-8');
-}
-
-$errors = [];
-$phone = '';
-
-// Rate limiting
-$ip = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
-$attempts_file = sys_get_temp_dir() . '/login_attempts_' . md5($ip);
-
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    // چک CSRF
-    if (!hash_equals($_SESSION['csrf_token'], $_POST['csrf_token'] ?? '')) {
-        $errors[] = 'خطای امنیتی. لطفاً صفحه را refresh کنید.';
-    } else {
-        // چک rate limit
-        $attempts = @json_decode(file_get_contents($attempts_file), true) ?: ['count' => 0, 'time' => time()];
-        if ($attempts['count'] >= 5 && (time() - $attempts['time']) < 300) {
-            $errors[] = 'تعداد تلاش‌های ناموفق زیاد. لطفاً ۵ دقیقه صبر کنید.';
-        } else {
-            $phone = sanitizeLogin($_POST['phone'] ?? '');
-            $password = $_POST['password'] ?? '';
-
-            if (empty($phone) || empty($password)) {
-                $errors[] = 'لطفاً تمام فیلدها را پر کنید.';
-            } elseif (!preg_match('/^09[0-9]{9}$/', $phone)) {
-                $errors[] = 'شماره موبایل نامعتبر است.';
-            } else {
-                $db = (new Database())->getConnection();
-                $stmt = $db->prepare("SELECT * FROM users WHERE phone = ? AND is_active = 1");
-                $stmt->execute([$phone]);
-                $user = $stmt->fetch();
-
-                if ($user && password_verify($password, $user['password_hash'])) {
-                    @unlink($attempts_file);
-
-                    $_SESSION['user_id'] = $user['id'];
-                    $_SESSION['full_name'] = $user['full_name'];
-                    $_SESSION['phone'] = $user['phone'];
-                    $_SESSION['credits'] = $user['credits'];
-                    $_SESSION['wallet_balance'] = $user['wallet_balance'] ?? 0;
-                    $_SESSION['is_admin'] = (bool)$user['is_admin'];
-                    $_SESSION['theme'] = $user['theme'] ?? 'light';
-
-                    // کوکی امن
-                    $token = bin2hex(random_bytes(32));
-                    setcookie('golestan_user', $user['id'], [
-                        'expires' => time() + (86400 * 30),
-                        'path' => '/',
-                        'secure' => true,
-                        'httponly' => true,
-                        'samesite' => 'Lax'
-                    ]);
-                    setcookie('golestan_token', $token, [
-                        'expires' => time() + (86400 * 30),
-                        'path' => '/',
-                        'secure' => true,
-                        'httponly' => true,
-                        'samesite' => 'Lax'
-                    ]);
-
-                    $stmt = $db->prepare("UPDATE users SET last_login = NOW() WHERE id = ?");
-                    $stmt->execute([$user['id']]);
-
-                    // چک رمز برای OAuth users
-                    if (empty($user['password_hash']) || password_verify('', $user['password_hash'])) {
-                        $redirect = '/user/dashboard/v2/set-password.php?welcome=1';
-                    } else {
-                        $redirect = $_GET['redirect'] ?? '/user/dashboard/v2/';
-                    }
-
-                    header("Location: " . $redirect);
-                    exit();
-                } else {
-                    if ((time() - $attempts['time']) > 300) {
-                        $attempts = ['count' => 1, 'time' => time()];
-                    } else {
-                        $attempts['count']++;
-                    }
-                    file_put_contents($attempts_file, json_encode($attempts));
-                    $errors[] = 'شماره موبایل یا رمز عبور اشتباه است.';
-                }
-            }
-        }
-    }
-    $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
-}
-
-if (isLoggedInLogin() && $_SERVER['REQUEST_METHOD'] !== 'POST') {
-    header("Location: " . ($_GET['redirect'] ?? '/user/dashboard/v2/'));
-    exit();
-}
-
-require_once __DIR__ . '/includes/functions.php';
-$page_title = 'ورود | ' . SITE_NAME;
+$page_title = SITE_NAME . ' | چت هوشمند، ساخت عکس، مشاوره و فروشگاه';
+$page_description = 'کافی‌نت گلستان یاسوج؛ چت هوشمند با Llama 4، ساخت عکس با AI، مشاوره هوشمند، فروشگاه خدمات و کالا — همه رایگان و حرفه‌ای.';
 require_once 'includes/header.php';
 ?>
 
-<style>
-    .github-btn {
-        background: #24292e !important;
-        color: white !important;
-        border-color: #24292e !important;
-        margin-top: 8px;
-    }
+<!-- Schema.org SEO -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": "کافی‌نت گلستان",
+  "applicationCategory": "AIApplication",
+  "description": "پلتفرم جامع هوش مصنوعی با چت Llama 4، ساخت عکس، مشاور هوشمند، فروشگاه و ابزارهای حرفه‌ای",
+  "url": "https://golestanyasuj.ir",
+  "offers": { "@type": "Offer", "price": "0", "priceCurrency": "IRR" }
+}
+</script>
 
-    .github-btn:hover {
-        background: #1b1f23 !important;
-        border-color: #1b1f23 !important;
-        color: white !important;
-    }
-
-    .github-btn i {
-        font-size: 1.2rem;
-    }
-</style>
-
-<div class="auth-container">
-    <div class="auth-box">
-        <div class="auth-header">
-            <div class="auth-icon"><i class="fas fa-sign-in-alt"></i></div>
-            <h1>ورود به <?php echo SITE_NAME; ?></h1>
-            <p>از طریق گوگل، گیت‌هاب یا شماره موبایل وارد شوید</p>
-        </div>
-
-        <?php if (!empty($errors)): ?>
-            <div class="alert alert-error">
-                <?php foreach ($errors as $e) echo "<p>$e</p>"; ?>
+<!-- ===== HERO ===== -->
+<section class="hero-new">
+    <div class="container">
+        <div class="hero-new-content">
+            <div class="hero-new-badge">
+                <span class="pulse"></span> هوش مصنوعی در خدمت کسب‌وکار شما
             </div>
-        <?php endif; ?>
-
-        <a href="/oauth/google-login.php" class="oauth-btn">
-            <img src="https://www.google.com/favicon.ico" alt="Google" width="20" height="20">
-            ورود با حساب گوگل
-        </a>
-        <a href="/oauth/github-login.php" class="oauth-btn github-btn">
-            <i class="fab fa-github"></i> ورود با گیت‌هاب
-        </a>
-
-        <div class="divider"><span>یا با شماره موبایل</span></div>
-
-        <form method="POST">
-            <input type="hidden" name="csrf_token" value="<?php echo $_SESSION['csrf_token']; ?>">
-            <div class="form-group">
-                <label>📱 شماره موبایل</label>
-                <input type="tel" name="phone" value="<?php echo $phone; ?>" placeholder="09xxxxxxxxx" required>
+            <h1 class="hero-new-title">
+                هر سوالی داری، <span>از AI بپرس</span>
+            </h1>
+            <p class="hero-new-desc">
+                <strong>چت هوشمند</strong> برای پاسخ به هر سوال، <strong>ساخت تصویر</strong> با ۳ مدل خلاقانه،
+                <strong>مشاوره خرید</strong> با ورودی صوتی، و <strong>فروشگاه</strong> ۱۰۰+ خدمات —
+                همه در یک پلتفرم <strong>کاملاً رایگان</strong>.
+            </p>
+            
+            <div id="installBanner" style="display:none; margin-bottom:20px;">
+                <button id="btnInstall" class="btn btn-light btn-lg" style="background:#f59e0b; color:#fff; border:none; box-shadow:0 4px 15px rgba(245,158,11,0.4);">
+                    <i class="ph ph-download-simple"></i> نصب برنامه
+                </button>
+                <p style="color:white; margin-top:8px; font-size:0.85rem; opacity:0.8;">با نصب برنامه، سریع‌تر و راحت‌تر از خدمات استفاده کنید</p>
             </div>
-            <div class="form-group">
-                <label>🔒 رمز عبور</label>
-                <input type="password" name="password" placeholder="رمز عبور" required>
+            
+            <div class="hero-new-actions">
+                <?php if (isLoggedIn()): ?>
+                    <a href="/user/dashboard/v2/chat.php" class="btn btn-light btn-lg">
+                        <i class="ph ph-brain"></i> چت با AI
+                    </a>
+                    <a href="/user/dashboard/v2/image.php" class="btn btn-light btn-lg">
+                        <i class="ph ph-image"></i> ساخت عکس
+                    </a>
+                <?php else: ?>
+                    <a href="/signup.php" class="btn btn-light btn-lg">
+                        <i class="ph ph-rocket"></i> شروع رایگان — ۱۰۰۰ اعتبار هدیه
+                    </a>
+                    <a href="/login.php" class="btn btn-outline btn-lg" style="border-color:rgba(255,255,255,0.5);color:white;">
+                        <i class="ph ph-sign-in"></i> ورود
+                    </a>
+                <?php endif; ?>
             </div>
-            <div class="form-options">
-                <label class="remember-me"><input type="checkbox"> مرا به خاطر بسپار</label>
-                <a href="/forgot-password.php" class="forgot-link">فراموشی رمز؟</a>
+            
+            <div class="hero-quick-links">
+                <a href="/user/dashboard/v2/chat.php" class="hero-quick-link"><i class="ph ph-brain"></i> چت AI</a>
+                <a href="/user/dashboard/v2/image.php" class="hero-quick-link"><i class="ph ph-image"></i> ساخت عکس</a>
+                <a href="/shop/agent.php" class="hero-quick-link"><i class="ph ph-robot"></i> مشاور هوشمند</a>
+                <a href="/shop/" class="hero-quick-link"><i class="ph ph-storefront"></i> فروشگاه</a>
+                <a href="/user/dashboard/v2/tools.php" class="hero-quick-link"><i class="ph ph-wrench"></i> ابزارها</a>
+                <a href="/projects/" class="hero-quick-link"><i class="ph ph-github-logo"></i> پروژه‌ها</a>
             </div>
-            <button type="submit" class="btn btn-primary btn-block">ورود به حساب</button>
-        </form>
-
-        <div class="auth-footer">
-            <p>حساب ندارید؟ <a href="/signup.php">ثبت‌نام کنید و ۱۰۰۰ اعتبار بگیرید</a></p>
-            <p><a href="/">← بازگشت به صفحه اصلی</a></p>
+            
+            <!-- Stats با استایل جدید -->
+            <div class="hero-new-stats">
+                <div class="stat-card-hero">
+                    <i class="ph ph-brain"></i>
+                    <span class="stat-title">Llama 4</span>
+                    <span class="stat-desc">مدل زبانی</span>
+                </div>
+                <div class="stat-card-hero">
+                    <i class="ph ph-image"></i>
+                    <span class="stat-title">۳ مدل</span>
+                    <span class="stat-desc">ساخت عکس</span>
+                </div>
+                <div class="stat-card-hero">
+                    <i class="ph ph-robot"></i>
+                    <span class="stat-title">مشاور AI</span>
+                    <span class="stat-desc">ورودی صوتی</span>
+                </div>
+                <div class="stat-card-hero">
+                    <i class="ph ph-storefront"></i>
+                    <span class="stat-title">فروشگاه</span>
+                    <span class="stat-desc">۱۰۰+ خدمت</span>
+                </div>
+                <div class="stat-card-hero">
+                    <i class="ph ph-gift"></i>
+                    <span class="stat-title">رایگان</span>
+                    <span class="stat-desc">برای همیشه</span>
+                </div>
+            </div>
         </div>
     </div>
-</div>
+</section>
+
+<!-- ===== خدمات ===== -->
+<section id="services">
+    <div class="container">
+        <div class="section-header">
+            <span class="section-badge"><i class="ph ph-rocket"></i> خدمات ویژه</span>
+            <h2 class="section-title">همه چی تو یه جا</h2>
+            <p class="section-subtitle">از چت هوشمند تا فروشگاه — هر چیزی که برای کسب‌وکار و خلاقیت نیاز داری</p>
+        </div>
+        
+        <div class="services-grid">
+            <a href="/user/dashboard/v2/chat.php" class="service-card">
+                <div class="service-icon"><i class="ph ph-brain"></i></div>
+                <h3>چت هوشمند AI</h3>
+                <p>پرسش و پاسخ، برنامه‌نویسی، ترجمه و یادگیری با قدرت Llama 4</p>
+            </a>
+            <a href="/user/dashboard/v2/image.php" class="service-card">
+                <div class="service-icon"><i class="ph ph-image"></i></div>
+                <h3>ساخت عکس با AI</h3>
+                <p>خلق تصاویر واقع‌گرا، هنری و فانتزی با ۳ مدل مختلف</p>
+            </a>
+            <a href="/shop/agent.php" class="service-card">
+                <div class="service-icon"><i class="ph ph-robot"></i></div>
+                <h3>مشاور هوشمند</h3>
+                <p>سوالات خود را بپرسید یا با صدای خود جستجو کنید</p>
+            </a>
+            <a href="/shop/" class="service-card">
+                <div class="service-icon"><i class="ph ph-storefront"></i></div>
+                <h3>فروشگاه</h3>
+                <p>۱۰۰+ خدمت کامپیوتری، بانکی، اداری و قطعات</p>
+            </a>
+            <a href="/projects/" class="service-card">
+                <div class="service-icon"><i class="ph ph-github-logo"></i></div>
+                <h3>پروژه‌های گیت‌هاب</h3>
+                <p>اتصال ریپازیتوری، تحلیل کد، رفع باگ و ویرایش با AI</p>
+            </a>
+            <a href="/user/dashboard/v2/tasks.php" class="service-card">
+                <div class="service-icon"><i class="ph ph-kanban"></i></div>
+                <h3>تقویم و تسک‌ها</h3>
+                <p>مدیریت وظایف با Kanban، تقویم شمسی و یادآوری هوشمند</p>
+            </a>
+        </div>
+    </div>
+</section>
+
+<!-- ===== چرا گلستان ===== -->
+<section style="background: var(--bg-secondary);">
+    <div class="container">
+        <div class="section-header">
+            <span class="section-badge"><i class="ph ph-chart-bar"></i> چرا گلستان؟</span>
+            <h2 class="section-title">یه پلتفرم، بی‌نهایت امکان</h2>
+        </div>
+        
+        <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 20px; text-align: center;">
+            <?php
+            $stats = [
+                ['icon' => 'ph-brain', 'title' => 'Llama 4', 'desc' => 'مدل زبانی', 'color' => 'var(--primary)'],
+                ['icon' => 'ph-image', 'title' => '۳ مدل تصویر', 'desc' => 'SDXL · Lightning', 'color' => 'var(--secondary)'],
+                ['icon' => 'ph-robot', 'title' => 'مشاور AI', 'desc' => 'ورودی صوتی', 'color' => 'var(--accent)'],
+                ['icon' => 'ph-storefront', 'title' => 'فروشگاه', 'desc' => '۱۰۰+ خدمت', 'color' => 'var(--success-fixed)'],
+                ['icon' => 'ph-wrench', 'title' => 'ابزارها', 'desc' => 'ویرایش تصویر', 'color' => 'var(--accent-fixed)'],
+                ['icon' => 'ph-gift', 'title' => 'رایگان', 'desc' => 'برای همیشه', 'color' => 'var(--danger-fixed)'],
+            ];
+            foreach ($stats as $s):
+            ?>
+            <div class="service-card" style="text-align:center; cursor:default;">
+                <div style="font-size:2.5rem; margin-bottom:8px; color:<?= $s['color'] ?>"><i class="ph <?= $s['icon'] ?>"></i></div>
+                <div style="font-weight:800; font-size:1.1rem; color:<?= $s['color'] ?>;"><?= $s['title'] ?></div>
+                <div style="color:var(--text-secondary); font-size:0.85rem; margin-top:4px;"><?= $s['desc'] ?></div>
+            </div>
+            <?php endforeach; ?>
+        </div>
+    </div>
+</section>
+
+<!-- ===== CTA ===== -->
+<section style="background: linear-gradient(135deg, var(--primary), var(--secondary)); color: white;">
+    <div class="container" style="text-align:center; padding: 40px 0;">
+        <h2 style="font-size:2rem; font-weight:800; margin-bottom:12px;"><i class="ph ph-rocket"></i> آماده‌ای شروع کنی؟</h2>
+        <p style="font-size:1.1rem; opacity:0.9; margin-bottom:28px; max-width:500px; margin-left:auto; margin-right:auto;">
+            ثبت‌نام کن، ۱۰۰۰ اعتبار هدیه بگیر و همه ابزارها رو رایگان امتحان کن
+        </p>
+        <?php if (!isLoggedIn()): ?>
+            <a href="/signup.php" class="btn btn-light btn-lg"><i class="ph ph-user-plus"></i> ثبت‌نام رایگان</a>
+        <?php else: ?>
+            <a href="/user/dashboard/v2/chat.php" class="btn btn-light btn-lg"><i class="ph ph-chats-circle"></i> چت با AI</a>
+            <a href="/user/dashboard/v2/image.php" class="btn btn-light btn-lg" style="margin-right:10px;"><i class="ph ph-image"></i> ساخت عکس</a>
+        <?php endif; ?>
+    </div>
+</section>
+
+<script>
+let deferredPrompt;
+window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    deferredPrompt = e;
+    document.getElementById('installBanner').style.display = 'block';
+});
+document.getElementById('btnInstall').addEventListener('click', async () => {
+    if (!deferredPrompt) return;
+    deferredPrompt.prompt();
+    const { outcome } = await deferredPrompt.userChoice;
+    console.log(`User response: ${outcome}`);
+    document.getElementById('installBanner').style.display = 'none';
+    deferredPrompt = null;
+});
+window.addEventListener('appinstalled', () => {
+    document.getElementById('installBanner').style.display = 'none';
+});
+</script>
 
 <?php require_once 'includes/footer.php'; ?>

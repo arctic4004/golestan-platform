@@ -1,0 +1,225 @@
+[27-Jun-2026 11:56:03 UTC] PHP Warning:  require_once(/home/golestanyasujir/public_html/user/dashboard/v2/../../config/constants.php): Failed to open stream: No such file or directory in /home/golestanyasujir/public_html/user/dashboard/v2/set-password.php on line 4
+[27-Jun-2026 11:56:03 UTC] PHP Fatal error:  Uncaught Error: Failed opening required '/home/golestanyasujir/public_html/user/dashboard/v2/../../config/constants.php' (include_path='.:/opt/cpanel/ea-php82/root/usr/share/pear') in /home/golestanyasujir/public_html/user/dashboard/v2/set-password.php:4
+Stack trace:
+#0 {main}
+  thrown in /home/golestanyasujir/public_html/user/dashboard/v2/set-password.php on line 4
+[27-Jun-2026 11:56:06 UTC] PHP Warning:  require_once(/home/golestanyasujir/public_html/user/dashboard/v2/../../config/constants.php): Failed to open stream: No such file or directory in /home/golestanyasujir/public_html/user/dashboard/v2/set-password.php on line 4
+[27-Jun-2026 11:56:06 UTC] PHP Fatal error:  Uncaught Error: Failed opening required '/home/golestanyasujir/public_html/user/dashboard/v2/../../config/constants.php' (include_path='.:/opt/cpanel/ea-php82/root/usr/share/pear') in /home/golestanyasujir/public_html/user/dashboard/v2/set-password.php:4
+Stack trace:
+#0 {main}
+  thrown in /home/golestanyasujir/public_html/user/dashboard/v2/set-password.php on line 4
+[27-Jun-2026 12:13:12 UTC] PHP Warning:  require_once(/home/golestanyasujir/public_html/user/dashboard/v2/../../config/constants.php): Failed to open stream: No such file or directory in /home/golestanyasujir/public_html/user/dashboard/v2/set-password.php on line 4
+[27-Jun-2026 12:13:12 UTC] PHP Fatal error:  Uncaught Error: Failed opening required '/home/golestanyasujir/public_html/user/dashboard/v2/../../config/constants.php' (include_path='.:/opt/cpanel/ea-php82/root/usr/share/pear') in /home/golestanyasujir/public_html/user/dashboard/v2/set-password.php:4
+Stack trace:
+#0 {main}
+  thrown in /home/golestanyasujir/public_html/user/dashboard/v2/set-password.php on line 4
+[27-Jun-2026 12:13:34 UTC] PHP Warning:  require_once(/home/golestanyasujir/public_html/user/dashboard/v2/../../config/constants.php): Failed to open stream: No such file or directory in /home/golestanyasujir/public_html/user/dashboard/v2/set-password.php on line 4
+[27-Jun-2026 12:13:34 UTC] PHP Fatal error:  Uncaught Error: Failed opening required '/home/golestanyasujir/public_html/user/dashboard/v2/../../config/constants.php' (include_path='.:/opt/cpanel/ea-php82/root/usr/share/pear') in /home/golestanyasujir/public_html/user/dashboard/v2/set-password.php:4
+Stack trace:
+#0 {main}
+  thrown in /home/golestanyasujir/public_html/user/dashboard/v2/set-password.php on line 4
+[27-Jun-2026 21:22:10 Asia/Tehran] AI Error: Authentication error
+[27-Jun-2026 21:22:47 Asia/Tehran] AI Error: Authentication error
+[27-Jun-2026 23:42:08 Asia/Tehran] AI Error: Authentication error
+[28-Jun-2026 03:33:54 Asia/Tehran] AI Error: Authentication error
+[28-Jun-2026 08:44:35 Asia/Tehran] AI Error: Authentication error
+[29-Jun-2026 18:21:35 Asia/Tehran] HuggingFace Error: API Error: HTTP 0
+[29-Jun-2026 18:21:36 Asia/Tehran] Cloudflare Error: Authentication error
+[29-Jun-2026 18:21:36 Asia/Tehran] HuggingFace Error: API Error: HTTP 0
+[29-Jun-2026 18:21:36 Asia/Tehran] Cloudflare Error: Authentication error
+[29-Jun-2026 18:37:28 Asia/Tehran] Cloudflare Error: Authentication error
+[29-Jun-2026 18:37:29 Asia/Tehran] Gemini Error: Gemini Error: HTTP 403
+[29-Jun-2026 18:37:29 Asia/Tehran] Cloudflare Error: Authentication error
+[29-Jun-2026 18:37:30 Asia/Tehran] Gemini Error: Gemini Error: HTTP 403
+[01-Jul-2026 06:45:45 Asia/Tehran] PHP Fatal error:  Uncaught Error: Call to undefined function redirect() in /home/golestanyasujir/public_html/user/dashboard/v2/tasks.php:9
+Stack trace:
+#0 {main}
+  thrown in /home/golestanyasujir/public_html/user/dashboard/v2/tasks.php on line 9
+[03-Jul-2026 12:33:13 Asia/Tehran] PHP Warning:  include(/home/golestanyasujir/public_html/user/dashboard/v2/_chat_sidebar.php): Failed to open stream: No such file or directory in /home/golestanyasujir/public_html/user/dashboard/v2/chat.php on line 57
+[03-Jul-2026 12:33:13 Asia/Tehran] PHP Warning:  include(/home/golestanyasujir/public_html/user/dashboard/v2/_chat_sidebar.php): Failed to open stream: No such file or directory in /home/golestanyasujir/public_html/user/dashboard/v2/chat.php on line 57
+[03-Jul-2026 12:33:13 Asia/Tehran] PHP Warning:  include(): Failed opening '/home/golestanyasujir/public_html/user/dashboard/v2/_chat_sidebar.php' for inclusion (include_path='.:/opt/cpanel/ea-php82/root/usr/share/pear') in /home/golestanyasujir/public_html/user/dashboard/v2/chat.php on line 57
+[03-Jul-2026 15:18:19 Asia/Tehran] PHP Warning:  include(/home/golestanyasujir/public_html/user/dashboard/v2/_chat_sidebar.php): Failed to open stream: No such file or directory in /home/golestanyasujir/public_html/user/dashboard/v2/chat.php on line 57
+[03-Jul-2026 15:18:19 Asia/Tehran] PHP Warning:  include(/home/golestanyasujir/public_html/user/dashboard/v2/_chat_sidebar.php): Failed to open stream: No such file or directory in /home/golestanyasujir/public_html/user/dashboard/v2/chat.php on line 57
+[03-Jul-2026 15:18:19 Asia/Tehran] PHP Warning:  include(): Failed opening '/home/golestanyasujir/public_html/user/dashboard/v2/_chat_sidebar.php' for inclusion (include_path='.:/opt/cpanel/ea-php82/root/usr/share/pear') in /home/golestanyasujir/public_html/user/dashboard/v2/chat.php on line 57
+[03-Jul-2026 15:21:57 Asia/Tehran] PHP Warning:  include(/home/golestanyasujir/public_html/user/dashboard/v2/_chat_sidebar.php): Failed to open stream: No such file or directory in /home/golestanyasujir/public_html/user/dashboard/v2/chat.php on line 57
+[03-Jul-2026 15:21:57 Asia/Tehran] PHP Warning:  include(/home/golestanyasujir/public_html/user/dashboard/v2/_chat_sidebar.php): Failed to open stream: No such file or directory in /home/golestanyasujir/public_html/user/dashboard/v2/chat.php on line 57
+[03-Jul-2026 15:21:57 Asia/Tehran] PHP Warning:  include(): Failed opening '/home/golestanyasujir/public_html/user/dashboard/v2/_chat_sidebar.php' for inclusion (include_path='.:/opt/cpanel/ea-php82/root/usr/share/pear') in /home/golestanyasujir/public_html/user/dashboard/v2/chat.php on line 57
+[03-Jul-2026 15:22:33 Asia/Tehran] PHP Warning:  include(/home/golestanyasujir/public_html/user/dashboard/v2/_chat_sidebar.php): Failed to open stream: No such file or directory in /home/golestanyasujir/public_html/user/dashboard/v2/chat.php on line 57
+[03-Jul-2026 15:22:33 Asia/Tehran] PHP Warning:  include(/home/golestanyasujir/public_html/user/dashboard/v2/_chat_sidebar.php): Failed to open stream: No such file or directory in /home/golestanyasujir/public_html/user/dashboard/v2/chat.php on line 57
+[03-Jul-2026 15:22:33 Asia/Tehran] PHP Warning:  include(): Failed opening '/home/golestanyasujir/public_html/user/dashboard/v2/_chat_sidebar.php' for inclusion (include_path='.:/opt/cpanel/ea-php82/root/usr/share/pear') in /home/golestanyasujir/public_html/user/dashboard/v2/chat.php on line 57
+[03-Jul-2026 15:26:19 Asia/Tehran] PHP Warning:  include(/home/golestanyasujir/public_html/user/dashboard/v2/_chat_sidebar.php): Failed to open stream: No such file or directory in /home/golestanyasujir/public_html/user/dashboard/v2/chat.php on line 57
+[03-Jul-2026 15:26:19 Asia/Tehran] PHP Warning:  include(/home/golestanyasujir/public_html/user/dashboard/v2/_chat_sidebar.php): Failed to open stream: No such file or directory in /home/golestanyasujir/public_html/user/dashboard/v2/chat.php on line 57
+[03-Jul-2026 15:26:19 Asia/Tehran] PHP Warning:  include(): Failed opening '/home/golestanyasujir/public_html/user/dashboard/v2/_chat_sidebar.php' for inclusion (include_path='.:/opt/cpanel/ea-php82/root/usr/share/pear') in /home/golestanyasujir/public_html/user/dashboard/v2/chat.php on line 57
+[03-Jul-2026 15:36:14 Asia/Tehran] PHP Warning:  include(/home/golestanyasujir/public_html/user/dashboard/v2/_chat_sidebar.php): Failed to open stream: No such file or directory in /home/golestanyasujir/public_html/user/dashboard/v2/chat.php on line 57
+[03-Jul-2026 15:36:14 Asia/Tehran] PHP Warning:  include(/home/golestanyasujir/public_html/user/dashboard/v2/_chat_sidebar.php): Failed to open stream: No such file or directory in /home/golestanyasujir/public_html/user/dashboard/v2/chat.php on line 57
+[03-Jul-2026 15:36:14 Asia/Tehran] PHP Warning:  include(): Failed opening '/home/golestanyasujir/public_html/user/dashboard/v2/_chat_sidebar.php' for inclusion (include_path='.:/opt/cpanel/ea-php82/root/usr/share/pear') in /home/golestanyasujir/public_html/user/dashboard/v2/chat.php on line 57
+[03-Jul-2026 15:37:33 Asia/Tehran] PHP Warning:  include(/home/golestanyasujir/public_html/user/dashboard/v2/_chat_sidebar.php): Failed to open stream: No such file or directory in /home/golestanyasujir/public_html/user/dashboard/v2/chat.php on line 57
+[03-Jul-2026 15:37:33 Asia/Tehran] PHP Warning:  include(/home/golestanyasujir/public_html/user/dashboard/v2/_chat_sidebar.php): Failed to open stream: No such file or directory in /home/golestanyasujir/public_html/user/dashboard/v2/chat.php on line 57
+[03-Jul-2026 15:37:33 Asia/Tehran] PHP Warning:  include(): Failed opening '/home/golestanyasujir/public_html/user/dashboard/v2/_chat_sidebar.php' for inclusion (include_path='.:/opt/cpanel/ea-php82/root/usr/share/pear') in /home/golestanyasujir/public_html/user/dashboard/v2/chat.php on line 57
+[03-Jul-2026 15:37:39 Asia/Tehran] PHP Warning:  include(/home/golestanyasujir/public_html/user/dashboard/v2/_chat_sidebar.php): Failed to open stream: No such file or directory in /home/golestanyasujir/public_html/user/dashboard/v2/chat.php on line 57
+[03-Jul-2026 15:37:39 Asia/Tehran] PHP Warning:  include(/home/golestanyasujir/public_html/user/dashboard/v2/_chat_sidebar.php): Failed to open stream: No such file or directory in /home/golestanyasujir/public_html/user/dashboard/v2/chat.php on line 57
+[03-Jul-2026 15:37:39 Asia/Tehran] PHP Warning:  include(): Failed opening '/home/golestanyasujir/public_html/user/dashboard/v2/_chat_sidebar.php' for inclusion (include_path='.:/opt/cpanel/ea-php82/root/usr/share/pear') in /home/golestanyasujir/public_html/user/dashboard/v2/chat.php on line 57
+[03-Jul-2026 15:41:01 Asia/Tehran] PHP Warning:  include(/home/golestanyasujir/public_html/user/dashboard/v2/_chat_sidebar.php): Failed to open stream: No such file or directory in /home/golestanyasujir/public_html/user/dashboard/v2/chat.php on line 57
+[03-Jul-2026 15:41:01 Asia/Tehran] PHP Warning:  include(/home/golestanyasujir/public_html/user/dashboard/v2/_chat_sidebar.php): Failed to open stream: No such file or directory in /home/golestanyasujir/public_html/user/dashboard/v2/chat.php on line 57
+[03-Jul-2026 15:41:01 Asia/Tehran] PHP Warning:  include(): Failed opening '/home/golestanyasujir/public_html/user/dashboard/v2/_chat_sidebar.php' for inclusion (include_path='.:/opt/cpanel/ea-php82/root/usr/share/pear') in /home/golestanyasujir/public_html/user/dashboard/v2/chat.php on line 57
+[03-Jul-2026 15:41:11 Asia/Tehran] PHP Warning:  include(/home/golestanyasujir/public_html/user/dashboard/v2/_chat_sidebar.php): Failed to open stream: No such file or directory in /home/golestanyasujir/public_html/user/dashboard/v2/chat.php on line 57
+[03-Jul-2026 15:41:11 Asia/Tehran] PHP Warning:  include(/home/golestanyasujir/public_html/user/dashboard/v2/_chat_sidebar.php): Failed to open stream: No such file or directory in /home/golestanyasujir/public_html/user/dashboard/v2/chat.php on line 57
+[03-Jul-2026 15:41:11 Asia/Tehran] PHP Warning:  include(): Failed opening '/home/golestanyasujir/public_html/user/dashboard/v2/_chat_sidebar.php' for inclusion (include_path='.:/opt/cpanel/ea-php82/root/usr/share/pear') in /home/golestanyasujir/public_html/user/dashboard/v2/chat.php on line 57
+[03-Jul-2026 15:41:11 Asia/Tehran] PHP Fatal error:  Uncaught Error: Call to undefined function formatMessage() in /home/golestanyasujir/public_html/user/dashboard/v2/chat.php:72
+Stack trace:
+#0 {main}
+  thrown in /home/golestanyasujir/public_html/user/dashboard/v2/chat.php on line 72
+[03-Jul-2026 15:41:34 Asia/Tehran] PHP Warning:  include(/home/golestanyasujir/public_html/user/dashboard/v2/_chat_sidebar.php): Failed to open stream: No such file or directory in /home/golestanyasujir/public_html/user/dashboard/v2/chat.php on line 57
+[03-Jul-2026 15:41:34 Asia/Tehran] PHP Warning:  include(/home/golestanyasujir/public_html/user/dashboard/v2/_chat_sidebar.php): Failed to open stream: No such file or directory in /home/golestanyasujir/public_html/user/dashboard/v2/chat.php on line 57
+[03-Jul-2026 15:41:34 Asia/Tehran] PHP Warning:  include(): Failed opening '/home/golestanyasujir/public_html/user/dashboard/v2/_chat_sidebar.php' for inclusion (include_path='.:/opt/cpanel/ea-php82/root/usr/share/pear') in /home/golestanyasujir/public_html/user/dashboard/v2/chat.php on line 57
+[03-Jul-2026 15:41:34 Asia/Tehran] PHP Fatal error:  Uncaught Error: Call to undefined function formatMessage() in /home/golestanyasujir/public_html/user/dashboard/v2/chat.php:72
+Stack trace:
+#0 {main}
+  thrown in /home/golestanyasujir/public_html/user/dashboard/v2/chat.php on line 72
+[03-Jul-2026 15:41:39 Asia/Tehran] PHP Warning:  include(/home/golestanyasujir/public_html/user/dashboard/v2/_chat_sidebar.php): Failed to open stream: No such file or directory in /home/golestanyasujir/public_html/user/dashboard/v2/chat.php on line 57
+[03-Jul-2026 15:41:39 Asia/Tehran] PHP Warning:  include(/home/golestanyasujir/public_html/user/dashboard/v2/_chat_sidebar.php): Failed to open stream: No such file or directory in /home/golestanyasujir/public_html/user/dashboard/v2/chat.php on line 57
+[03-Jul-2026 15:41:39 Asia/Tehran] PHP Warning:  include(): Failed opening '/home/golestanyasujir/public_html/user/dashboard/v2/_chat_sidebar.php' for inclusion (include_path='.:/opt/cpanel/ea-php82/root/usr/share/pear') in /home/golestanyasujir/public_html/user/dashboard/v2/chat.php on line 57
+[03-Jul-2026 15:41:39 Asia/Tehran] PHP Fatal error:  Uncaught Error: Call to undefined function formatMessage() in /home/golestanyasujir/public_html/user/dashboard/v2/chat.php:72
+Stack trace:
+#0 {main}
+  thrown in /home/golestanyasujir/public_html/user/dashboard/v2/chat.php on line 72
+[03-Jul-2026 15:44:35 Asia/Tehran] PHP Warning:  include(/home/golestanyasujir/public_html/user/dashboard/v2/_chat_sidebar.php): Failed to open stream: No such file or directory in /home/golestanyasujir/public_html/user/dashboard/v2/chat.php on line 57
+[03-Jul-2026 15:44:35 Asia/Tehran] PHP Warning:  include(/home/golestanyasujir/public_html/user/dashboard/v2/_chat_sidebar.php): Failed to open stream: No such file or directory in /home/golestanyasujir/public_html/user/dashboard/v2/chat.php on line 57
+[03-Jul-2026 15:44:35 Asia/Tehran] PHP Warning:  include(): Failed opening '/home/golestanyasujir/public_html/user/dashboard/v2/_chat_sidebar.php' for inclusion (include_path='.:/opt/cpanel/ea-php82/root/usr/share/pear') in /home/golestanyasujir/public_html/user/dashboard/v2/chat.php on line 57
+[03-Jul-2026 15:44:40 Asia/Tehran] PHP Warning:  include(/home/golestanyasujir/public_html/user/dashboard/v2/_chat_sidebar.php): Failed to open stream: No such file or directory in /home/golestanyasujir/public_html/user/dashboard/v2/chat.php on line 57
+[03-Jul-2026 15:44:40 Asia/Tehran] PHP Warning:  include(/home/golestanyasujir/public_html/user/dashboard/v2/_chat_sidebar.php): Failed to open stream: No such file or directory in /home/golestanyasujir/public_html/user/dashboard/v2/chat.php on line 57
+[03-Jul-2026 15:44:40 Asia/Tehran] PHP Warning:  include(): Failed opening '/home/golestanyasujir/public_html/user/dashboard/v2/_chat_sidebar.php' for inclusion (include_path='.:/opt/cpanel/ea-php82/root/usr/share/pear') in /home/golestanyasujir/public_html/user/dashboard/v2/chat.php on line 57
+[03-Jul-2026 15:44:40 Asia/Tehran] PHP Fatal error:  Uncaught Error: Call to undefined function formatMessage() in /home/golestanyasujir/public_html/user/dashboard/v2/chat.php:72
+Stack trace:
+#0 {main}
+  thrown in /home/golestanyasujir/public_html/user/dashboard/v2/chat.php on line 72
+[03-Jul-2026 15:53:50 Asia/Tehran] PHP Warning:  include(/home/golestanyasujir/public_html/user/dashboard/v2/_chat_sidebar.php): Failed to open stream: No such file or directory in /home/golestanyasujir/public_html/user/dashboard/v2/chat.php on line 57
+[03-Jul-2026 15:53:50 Asia/Tehran] PHP Warning:  include(/home/golestanyasujir/public_html/user/dashboard/v2/_chat_sidebar.php): Failed to open stream: No such file or directory in /home/golestanyasujir/public_html/user/dashboard/v2/chat.php on line 57
+[03-Jul-2026 15:53:50 Asia/Tehran] PHP Warning:  include(): Failed opening '/home/golestanyasujir/public_html/user/dashboard/v2/_chat_sidebar.php' for inclusion (include_path='.:/opt/cpanel/ea-php82/root/usr/share/pear') in /home/golestanyasujir/public_html/user/dashboard/v2/chat.php on line 57
+[03-Jul-2026 15:54:00 Asia/Tehran] PHP Warning:  include(/home/golestanyasujir/public_html/user/dashboard/v2/_chat_sidebar.php): Failed to open stream: No such file or directory in /home/golestanyasujir/public_html/user/dashboard/v2/chat.php on line 57
+[03-Jul-2026 15:54:00 Asia/Tehran] PHP Warning:  include(/home/golestanyasujir/public_html/user/dashboard/v2/_chat_sidebar.php): Failed to open stream: No such file or directory in /home/golestanyasujir/public_html/user/dashboard/v2/chat.php on line 57
+[03-Jul-2026 15:54:00 Asia/Tehran] PHP Warning:  include(): Failed opening '/home/golestanyasujir/public_html/user/dashboard/v2/_chat_sidebar.php' for inclusion (include_path='.:/opt/cpanel/ea-php82/root/usr/share/pear') in /home/golestanyasujir/public_html/user/dashboard/v2/chat.php on line 57
+[03-Jul-2026 15:54:00 Asia/Tehran] PHP Fatal error:  Uncaught Error: Call to undefined function formatMessage() in /home/golestanyasujir/public_html/user/dashboard/v2/chat.php:72
+Stack trace:
+#0 {main}
+  thrown in /home/golestanyasujir/public_html/user/dashboard/v2/chat.php on line 72
+[03-Jul-2026 15:54:28 Asia/Tehran] PHP Warning:  include(/home/golestanyasujir/public_html/user/dashboard/v2/_chat_sidebar.php): Failed to open stream: No such file or directory in /home/golestanyasujir/public_html/user/dashboard/v2/chat.php on line 57
+[03-Jul-2026 15:54:28 Asia/Tehran] PHP Warning:  include(/home/golestanyasujir/public_html/user/dashboard/v2/_chat_sidebar.php): Failed to open stream: No such file or directory in /home/golestanyasujir/public_html/user/dashboard/v2/chat.php on line 57
+[03-Jul-2026 15:54:28 Asia/Tehran] PHP Warning:  include(): Failed opening '/home/golestanyasujir/public_html/user/dashboard/v2/_chat_sidebar.php' for inclusion (include_path='.:/opt/cpanel/ea-php82/root/usr/share/pear') in /home/golestanyasujir/public_html/user/dashboard/v2/chat.php on line 57
+[03-Jul-2026 19:36:59 Asia/Tehran] PHP Warning:  include(/home/golestanyasujir/public_html/user/dashboard/v2/_chat_sidebar.php): Failed to open stream: No such file or directory in /home/golestanyasujir/public_html/user/dashboard/v2/chat.php on line 57
+[03-Jul-2026 19:36:59 Asia/Tehran] PHP Warning:  include(/home/golestanyasujir/public_html/user/dashboard/v2/_chat_sidebar.php): Failed to open stream: No such file or directory in /home/golestanyasujir/public_html/user/dashboard/v2/chat.php on line 57
+[03-Jul-2026 19:36:59 Asia/Tehran] PHP Warning:  include(): Failed opening '/home/golestanyasujir/public_html/user/dashboard/v2/_chat_sidebar.php' for inclusion (include_path='.:/opt/cpanel/ea-php82/root/usr/share/pear') in /home/golestanyasujir/public_html/user/dashboard/v2/chat.php on line 57
+[03-Jul-2026 19:37:12 Asia/Tehran] PHP Warning:  include(/home/golestanyasujir/public_html/user/dashboard/v2/_chat_sidebar.php): Failed to open stream: No such file or directory in /home/golestanyasujir/public_html/user/dashboard/v2/chat.php on line 57
+[03-Jul-2026 19:37:12 Asia/Tehran] PHP Warning:  include(/home/golestanyasujir/public_html/user/dashboard/v2/_chat_sidebar.php): Failed to open stream: No such file or directory in /home/golestanyasujir/public_html/user/dashboard/v2/chat.php on line 57
+[03-Jul-2026 19:37:12 Asia/Tehran] PHP Warning:  include(): Failed opening '/home/golestanyasujir/public_html/user/dashboard/v2/_chat_sidebar.php' for inclusion (include_path='.:/opt/cpanel/ea-php82/root/usr/share/pear') in /home/golestanyasujir/public_html/user/dashboard/v2/chat.php on line 57
+[03-Jul-2026 19:37:12 Asia/Tehran] PHP Fatal error:  Uncaught Error: Call to undefined function formatMessage() in /home/golestanyasujir/public_html/user/dashboard/v2/chat.php:72
+Stack trace:
+#0 {main}
+  thrown in /home/golestanyasujir/public_html/user/dashboard/v2/chat.php on line 72
+[03-Jul-2026 19:37:14 Asia/Tehran] PHP Warning:  include(/home/golestanyasujir/public_html/user/dashboard/v2/_chat_sidebar.php): Failed to open stream: No such file or directory in /home/golestanyasujir/public_html/user/dashboard/v2/chat.php on line 57
+[03-Jul-2026 19:37:14 Asia/Tehran] PHP Warning:  include(/home/golestanyasujir/public_html/user/dashboard/v2/_chat_sidebar.php): Failed to open stream: No such file or directory in /home/golestanyasujir/public_html/user/dashboard/v2/chat.php on line 57
+[03-Jul-2026 19:37:14 Asia/Tehran] PHP Warning:  include(): Failed opening '/home/golestanyasujir/public_html/user/dashboard/v2/_chat_sidebar.php' for inclusion (include_path='.:/opt/cpanel/ea-php82/root/usr/share/pear') in /home/golestanyasujir/public_html/user/dashboard/v2/chat.php on line 57
+[03-Jul-2026 19:37:14 Asia/Tehran] PHP Fatal error:  Uncaught Error: Call to undefined function formatMessage() in /home/golestanyasujir/public_html/user/dashboard/v2/chat.php:72
+Stack trace:
+#0 {main}
+  thrown in /home/golestanyasujir/public_html/user/dashboard/v2/chat.php on line 72
+[05-Jul-2026 15:44:53 Asia/Tehran] PHP Fatal error:  Uncaught Error: Call to undefined function generateCSRFToken() in /home/golestanyasujir/public_html/user/dashboard/v2/settings.php:85
+Stack trace:
+#0 {main}
+  thrown in /home/golestanyasujir/public_html/user/dashboard/v2/settings.php on line 85
+[05-Jul-2026 15:44:56 Asia/Tehran] PHP Fatal error:  Uncaught Error: Call to undefined function generateCSRFToken() in /home/golestanyasujir/public_html/user/dashboard/v2/settings.php:85
+Stack trace:
+#0 {main}
+  thrown in /home/golestanyasujir/public_html/user/dashboard/v2/settings.php on line 85
+[05-Jul-2026 15:44:57 Asia/Tehran] PHP Fatal error:  Uncaught Error: Call to undefined function generateCSRFToken() in /home/golestanyasujir/public_html/user/dashboard/v2/settings.php:85
+Stack trace:
+#0 {main}
+  thrown in /home/golestanyasujir/public_html/user/dashboard/v2/settings.php on line 85
+[05-Jul-2026 15:45:14 Asia/Tehran] PHP Fatal error:  Uncaught Error: Call to undefined function generateCSRFToken() in /home/golestanyasujir/public_html/user/dashboard/v2/settings.php:85
+Stack trace:
+#0 {main}
+  thrown in /home/golestanyasujir/public_html/user/dashboard/v2/settings.php on line 85
+[05-Jul-2026 15:45:16 Asia/Tehran] PHP Fatal error:  Uncaught Error: Call to undefined function generateCSRFToken() in /home/golestanyasujir/public_html/user/dashboard/v2/settings.php:85
+Stack trace:
+#0 {main}
+  thrown in /home/golestanyasujir/public_html/user/dashboard/v2/settings.php on line 85
+[05-Jul-2026 15:45:23 Asia/Tehran] PHP Fatal error:  Uncaught Error: Call to undefined function generateCSRFToken() in /home/golestanyasujir/public_html/user/dashboard/v2/settings.php:85
+Stack trace:
+#0 {main}
+  thrown in /home/golestanyasujir/public_html/user/dashboard/v2/settings.php on line 85
+[05-Jul-2026 15:45:25 Asia/Tehran] PHP Fatal error:  Uncaught Error: Call to undefined function generateCSRFToken() in /home/golestanyasujir/public_html/user/dashboard/v2/settings.php:85
+Stack trace:
+#0 {main}
+  thrown in /home/golestanyasujir/public_html/user/dashboard/v2/settings.php on line 85
+[05-Jul-2026 15:53:25 Asia/Tehran] PHP Fatal error:  Uncaught Error: Call to undefined function generateCSRFToken() in /home/golestanyasujir/public_html/user/dashboard/v2/settings.php:90
+Stack trace:
+#0 {main}
+  thrown in /home/golestanyasujir/public_html/user/dashboard/v2/settings.php on line 90
+[05-Jul-2026 16:26:49 Asia/Tehran] PHP Fatal error:  Uncaught Error: Call to undefined function generateCSRFToken() in /home/golestanyasujir/public_html/user/dashboard/v2/settings.php:90
+Stack trace:
+#0 {main}
+  thrown in /home/golestanyasujir/public_html/user/dashboard/v2/settings.php on line 90
+[05-Jul-2026 16:28:11 Asia/Tehran] PHP Fatal error:  Uncaught Error: Call to undefined function generateCSRFToken() in /home/golestanyasujir/public_html/user/dashboard/v2/settings.php:90
+Stack trace:
+#0 {main}
+  thrown in /home/golestanyasujir/public_html/user/dashboard/v2/settings.php on line 90
+[05-Jul-2026 16:28:42 Asia/Tehran] PHP Fatal error:  Uncaught Error: Call to undefined function generateCSRFToken() in /home/golestanyasujir/public_html/user/dashboard/v2/settings.php:90
+Stack trace:
+#0 {main}
+  thrown in /home/golestanyasujir/public_html/user/dashboard/v2/settings.php on line 90
+[05-Jul-2026 16:32:28 Asia/Tehran] PHP Fatal error:  Uncaught Error: Call to undefined function generateCSRFToken() in /home/golestanyasujir/public_html/user/dashboard/v2/settings.php:90
+Stack trace:
+#0 {main}
+  thrown in /home/golestanyasujir/public_html/user/dashboard/v2/settings.php on line 90
+[05-Jul-2026 16:34:07 Asia/Tehran] PHP Fatal error:  Uncaught Error: Call to undefined function generateCSRFToken() in /home/golestanyasujir/public_html/user/dashboard/v2/settings.php:90
+Stack trace:
+#0 {main}
+  thrown in /home/golestanyasujir/public_html/user/dashboard/v2/settings.php on line 90
+[05-Jul-2026 16:34:28 Asia/Tehran] PHP Fatal error:  Uncaught Error: Call to undefined function generateCSRFToken() in /home/golestanyasujir/public_html/user/dashboard/v2/settings.php:90
+Stack trace:
+#0 {main}
+  thrown in /home/golestanyasujir/public_html/user/dashboard/v2/settings.php on line 90
+[05-Jul-2026 16:34:30 Asia/Tehran] PHP Fatal error:  Uncaught Error: Call to undefined function generateCSRFToken() in /home/golestanyasujir/public_html/user/dashboard/v2/settings.php:90
+Stack trace:
+#0 {main}
+  thrown in /home/golestanyasujir/public_html/user/dashboard/v2/settings.php on line 90
+[05-Jul-2026 16:35:20 Asia/Tehran] PHP Fatal error:  Uncaught Error: Call to undefined function generateCSRFToken() in /home/golestanyasujir/public_html/user/dashboard/v2/settings.php:104
+Stack trace:
+#0 {main}
+  thrown in /home/golestanyasujir/public_html/user/dashboard/v2/settings.php on line 104
+[05-Jul-2026 18:29:32 Asia/Tehran] PHP Fatal error:  Uncaught Error: Call to undefined function generateCSRFToken() in /home/golestanyasujir/public_html/user/dashboard/v2/settings.php:104
+Stack trace:
+#0 {main}
+  thrown in /home/golestanyasujir/public_html/user/dashboard/v2/settings.php on line 104
+[05-Jul-2026 23:03:35 Asia/Tehran] PHP Fatal error:  Uncaught Error: Call to undefined function generateCSRFToken() in /home/golestanyasujir/public_html/user/dashboard/v2/settings.php:104
+Stack trace:
+#0 {main}
+  thrown in /home/golestanyasujir/public_html/user/dashboard/v2/settings.php on line 104
+[05-Jul-2026 23:05:49 Asia/Tehran] PHP Fatal error:  Uncaught Error: Call to undefined function generateCSRFToken() in /home/golestanyasujir/public_html/user/dashboard/v2/settings.php:104
+Stack trace:
+#0 {main}
+  thrown in /home/golestanyasujir/public_html/user/dashboard/v2/settings.php on line 104
+[05-Jul-2026 23:27:22 Asia/Tehran] PHP Fatal error:  Uncaught Error: Call to undefined function generateCSRFToken() in /home/golestanyasujir/public_html/user/dashboard/v2/settings.php:101
+Stack trace:
+#0 {main}
+  thrown in /home/golestanyasujir/public_html/user/dashboard/v2/settings.php on line 101
+[05-Jul-2026 23:27:32 Asia/Tehran] PHP Fatal error:  Uncaught Error: Call to undefined function generateCSRFToken() in /home/golestanyasujir/public_html/user/dashboard/v2/settings.php:101
+Stack trace:
+#0 {main}
+  thrown in /home/golestanyasujir/public_html/user/dashboard/v2/settings.php on line 101
+[06-Jul-2026 00:59:07 Asia/Tehran] PHP Fatal error:  Uncaught Error: Call to undefined function redirect() in /home/golestanyasujir/public_html/user/dashboard/v2/tasks.php:9
+Stack trace:
+#0 {main}
+  thrown in /home/golestanyasujir/public_html/user/dashboard/v2/tasks.php on line 9
+[06-Jul-2026 00:59:08 Asia/Tehran] PHP Fatal error:  Uncaught Error: Call to undefined function redirect() in /home/golestanyasujir/public_html/user/dashboard/v2/tasks.php:9
+Stack trace:
+#0 {main}
+  thrown in /home/golestanyasujir/public_html/user/dashboard/v2/tasks.php on line 9
+[06-Jul-2026 02:03:16 Asia/Tehran] PHP Warning:  Undefined variable $month_names in /home/golestanyasujir/public_html/user/dashboard/v2/tasks.php on line 326
+[06-Jul-2026 02:03:16 Asia/Tehran] PHP Warning:  Trying to access array offset on value of type null in /home/golestanyasujir/public_html/user/dashboard/v2/tasks.php on line 326
+[06-Jul-2026 20:57:34 Asia/Tehran] Cloudflare: AiError: AiError: An internal server error occured. (e55c6f79-7972-4e89-ad25-dd9e966389c4)
+[06-Jul-2026 20:57:35 Asia/Tehran] Gemini: Gemini Error: HTTP 403
+[06-Jul-2026 20:57:43 Asia/Tehran] Cloudflare: AiError: AiError: An internal server error occured. (654120b9-bc87-44ac-b5cf-367e073e5e28)
+[06-Jul-2026 20:57:45 Asia/Tehran] Gemini: Gemini Error: HTTP 403
+[06-Jul-2026 20:59:18 Asia/Tehran] Cloudflare: AiError: AiError: An internal server error occured. (3d20ecda-87e3-43eb-a887-d391e00da300)
+[06-Jul-2026 20:59:19 Asia/Tehran] Gemini: Gemini Error: HTTP 403

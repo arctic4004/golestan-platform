@@ -1,22 +1,7 @@
 # admin/.htaccess
-AuthType Basic
-AuthName "Admin Area"
-# Remove authentication for now
-# Require valid-user
-
-# Prevent directory listing
 Options -Indexes
 
-# Protect PHP files
+# Allow all PHP files
 <FilesMatch "\.php$">
-    Order deny,allow
-    Deny from all
-    Allow from 127.0.0.1
-    Allow from ::1
+    Require all granted
 </FilesMatch>
-
-# Allow access to index.php
-<Files "index.php">
-    Order allow,deny
-    Allow from all
-</Files>
