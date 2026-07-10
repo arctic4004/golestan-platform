@@ -1,131 +1,196 @@
-<p align="center">
-  <img src="https://raw.githubusercontent.com/arctic4004/golestan-platform/main/assets/icons/icon-192x192.png" alt="Golestan Cafénet" width="80">
+<div align="center">
+
+<img src="https://raw.githubusercontent.com/arctic4004/golestan-platform/main/assets/icons/icon-192x192.png" width="80" alt="Golestan Cafénet Logo" />
+
+# کافی‌نت گلستان
+
+### پلتفرم جامع مدیریت کافی‌نت، خدمات دیجیتال و هوش مصنوعی
+
+<p>
+سامانه‌ای مدرن برای مدیریت خدمات کافی‌نت، فروشگاه آنلاین، مدیریت مشتریان، گفتگوی هوشمند، تولید تصویر، مدیریت وظایف و اتوماسیون کسب‌وکار.
 </p>
 
-<h1 align="center">کافی‌نت گلستان</h1>
-<h3 align="center">پلتفرم هوش مصنوعی، فروشگاه آنلاین و مدیریت مشتریان</h3>
-
-<p align="center">
-  <img src="https://img.shields.io/badge/PHP-8.0%2B-777bb4?style=flat-square&logo=php&logoColor=white" alt="PHP">
-  <img src="https://img.shields.io/badge/MySQL-5.7%2B-4479a1?style=flat-square&logo=mysql&logoColor=white" alt="MySQL">
-  <img src="https://img.shields.io/badge/JavaScript-ES6%2B-f7df1e?style=flat-square&logo=javascript&logoColor=black" alt="JavaScript">
-  <img src="https://img.shields.io/badge/Llama-4-0ea5e9?style=flat-square&logo=meta&logoColor=white" alt="Llama 4">
-  <img src="https://img.shields.io/badge/PWA-Ready-5a0fc8?style=flat-square&logo=pwa&logoColor=white" alt="PWA">
-  <img src="https://img.shields.io/badge/license-Private-red?style=flat-square" alt="License">
+<p>
+<img src="https://img.shields.io/badge/PHP-8%2B-777BB4?style=flat-square&logo=php&logoColor=white" alt="PHP">
+<img src="https://img.shields.io/badge/MySQL-8.0-4479A1?style=flat-square&logo=mysql&logoColor=white" alt="MySQL">
+<img src="https://img.shields.io/badge/JavaScript-ES6-F7DF1E?style=flat-square&logo=javascript&logoColor=black" alt="JavaScript">
+<img src="https://img.shields.io/badge/Llama-4-8A2BE2?style=flat-square" alt="Llama 4">
+<img src="https://img.shields.io/badge/PWA-Ready-5A0FC8?style=flat-square&logo=pwa&logoColor=white" alt="PWA">
+<img src="https://img.shields.io/badge/License-MIT-success?style=flat-square" alt="License">
 </p>
+
+</div>
 
 ---
 
-## درباره پروژه
+# درباره پروژه
 
-یک پلتفرم تحت وب کامل برای **کافی‌نت گلستان** در یاسوج که خدمات کامپیوتری، هوش مصنوعی، فروشگاه آنلاین و مدیریت مشتریان را در یک سامانه یکپارچه ارائه می‌دهد. این پروژه برای استفاده واقعی در یک کسب‌وکار فیزیکی طراحی و پیاده‌سازی شده است.
+**کافی‌نت گلستان** یک پلتفرم جامع تحت وب برای مدیریت کامل کافی‌نت و خدمات دیجیتال در **یاسوج، ایران** است.
+
+این سامانه با هدف یکپارچه‌سازی خدمات حضوری و آنلاین طراحی شده و امکانات متنوعی از جمله مدیریت مشتریان، فروشگاه آنلاین، هوش مصنوعی، مدیریت وظایف، تقویم شمسی و اپلیکیشن پیش‌رونده (PWA) را در اختیار مدیران و کارکنان قرار می‌دهد.
 
 ---
 
-## ویژگی‌های کلیدی
+# ویژگی‌های کلیدی
 
 <table>
-  <tr>
-    <td width="50%">
-      <h3>🤖 هوش مصنوعی</h3>
-      <ul>
-        <li>چت پیشرفته با <strong>Llama 4</strong> (Cloudflare Workers AI)</li>
-        <li>حالت تفکر عمیق (Think) و جستجو (Search)</li>
-        <li>ساخت تصویر با <strong>۳ مدل</strong> (SDXL، DreamShaper، Lightning)</li>
-        <li>مشاور فروش با <strong>ورودی صوتی فارسی</strong></li>
-        <li>پایگاه دانش <strong>۱۰۰+ خدمت</strong> با قیمت و مدارک</li>
-      </ul>
-    </td>
-    <td width="50%">
-      <h3>🛒 فروشگاه</h3>
-      <ul>
-        <li><strong>۱۵ دسته‌بندی</strong> خدمات و کالاها</li>
-        <li>سبد خرید و تسویه حساب</li>
-        <li>جستجوی هوشمند در محصولات</li>
-        <li>فاکتور و پیگیری سفارشات</li>
-      </ul>
-    </td>
-  </tr>
-  <tr>
-    <td>
-      <h3>👥 مدیریت مشتریان (CRM)</h3>
-      <ul>
-        <li>ثبت اطلاعات مشتریان حضوری</li>
-        <li>تگ‌گذاری و دسته‌بندی هوشمند</li>
-        <li>سیستم رنکینگ (🥉 برنزی تا 👑 الماس)</li>
-        <li>یادداشت‌ها و یادآوری‌ها</li>
-      </ul>
-    </td>
-    <td>
-      <h3>🎨 طراحی و تجربه کاربری</h3>
-      <ul>
-        <li><strong>۹ تم رنگی</strong> + حالت روشن و تاریک</li>
-        <li>آیکون‌های Phosphor (مدرن و یکدست)</li>
-        <li>کاملاً واکنش‌گرا (Mobile-First)</li>
-        <li>تقویم شمسی با مناسبت‌ها</li>
-        <li><strong>PWA</strong> – نصب روی گوشی بدون فروشگاه</li>
-      </ul>
-    </td>
-  </tr>
+<tr>
+<td width="50%">
+
+### 🤖 هوش مصنوعی
+
+- گفتگوی هوشمند با Llama 4
+- تولید تصویر با ۳ مدل مختلف
+- دستیار فروش صوتی
+- پاسخگویی خودکار
+
+</td>
+
+<td width="50%">
+
+### 🛍️ خدمات و فروش
+
+- بیش از ۱۰۰ خدمت آنلاین
+- فروشگاه اینترنتی
+- ثبت سفارش
+- مدیریت پرداخت
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+### 👥 مدیریت مشتریان
+
+- CRM حرفه‌ای
+- رتبه‌بندی مشتریان
+- سوابق خدمات
+- مدیریت پرونده‌ها
+
+</td>
+
+<td>
+
+### ⚙️ امکانات مدیریتی
+
+- ۹ تم رنگی
+- مدیریت وظایف Kanban
+- تقویم شمسی
+- نصب به‌صورت PWA
+
+</td>
+</tr>
 </table>
 
 ---
 
-## تکنولوژی‌ها
+# تکنولوژی‌ها
 
-<p align="center">
-  <img src="https://img.shields.io/badge/PHP-8.0%2B-777bb4?style=for-the-badge&logo=php&logoColor=white" alt="PHP">
-  <img src="https://img.shields.io/badge/MySQL-5.7%2B-4479a1?style=for-the-badge&logo=mysql&logoColor=white" alt="MySQL">
-  <img src="https://img.shields.io/badge/JavaScript-ES6%2B-f7df1e?style=for-the-badge&logo=javascript&logoColor=black" alt="JS">
-  <img src="https://img.shields.io/badge/CSS3-1572b6?style=for-the-badge&logo=css3&logoColor=white" alt="CSS3">
-  <img src="https://img.shields.io/badge/Cloudflare-F38020?style=for-the-badge&logo=cloudflare&logoColor=white" alt="Cloudflare">
-  <img src="https://img.shields.io/badge/Phosphor-Icons-0ea5e9?style=for-the-badge" alt="Phosphor">
-</p>
+<div align="center">
+
+<img src="https://img.shields.io/badge/PHP-8%2B-777BB4?style=for-the-badge&logo=php&logoColor=white" alt="PHP">
+
+<img src="https://img.shields.io/badge/MySQL-4479A1?style=for-the-badge&logo=mysql&logoColor=white" alt="MySQL">
+
+<img src="https://img.shields.io/badge/JavaScript-F7DF1E?style=for-the-badge&logo=javascript&logoColor=black" alt="JavaScript">
+
+<img src="https://img.shields.io/badge/Cloudflare-Workers_AI-F38020?style=for-the-badge&logo=cloudflare&logoColor=white" alt="Cloudflare Workers AI">
+
+<img src="https://img.shields.io/badge/Phosphor-Icons-000000?style=for-the-badge" alt="Phosphor Icons">
+
+<img src="https://img.shields.io/badge/PWA-Ready-5A0FC8?style=for-the-badge&logo=pwa&logoColor=white" alt="PWA">
+
+</div>
 
 ---
 
-## نصب و راه‌اندازی
+# نصب و راه‌اندازی
 
-````bash
-# کلون کردن مخزن
-git clone https://github.com/arctic4004/golestan-platform.git
-cd golestan-platform
-------
-۱. دیتابیس — یک دیتابیس MySQL ایجاد کنید و جداول مورد نیاز را import کنید.
+## مرحله ۱: ایجاد پایگاه داده
 
-۲. تنظیمات — فایل config/database.php را با اطلاعات دیتابیس خود ویرایش کنید:
-$this->host     = 'localhost';
-$this->db_name  = 'your_database';
-$this->username = 'your_username';
-$this->password = 'your_password';
-۳. API Token — توکن Cloudflare را در جدول settings ذخیره کنید:
-INSERT INTO settings (setting_key, setting_value)
-VALUES ('deepseek_api_key', 'YOUR_CLOUDFLARE_TOKEN');
-۴. آپلود — فایل‌ها را روی سرور Apache با PHP 8.0+ آپلود کنید.
-------
-ساختار پروژه
-.
-├── api/chat/         # API چت هوشمند (Llama 4)
-├── api/image/        # API ساخت و ویرایش تصویر
-├── admin/            # پنل مدیریت و CRM
-├── assets/           # CSS، JavaScript، آیکون‌ها
-├── config/           # تنظیمات دیتابیس و ثابت‌ها
-├── includes/         # هدر، فوتر، نوبار، توابع کمکی
-├── knowledge/        # پایگاه دانش ۱۰۰+ خدمت (JSON)
-├── shop/             # فروشگاه آنلاین
-├── user/dashboard/   # داشبورد کاربری
-└── index.php         # صفحه اصلی
+ابتدا یک پایگاه داده جدید در MySQL ایجاد کرده و فایل SQL پروژه را در آن Import نمایید.
 
-امنیت
-Prepared Statements (PDO) برای جلوگیری از SQL Injection
+---
 
-CSRF Tokens در تمام فرم‌ها
+## مرحله ۲: ویرایش فایل `config/database.php`
 
-Rate Limiting برای جلوگیری از Brute Force
+```php
+<?php
 
-کوکی‌های HttpOnly و Secure
+return [
+    'host' => 'localhost',
+    'database' => 'golestan_platform',
+    'username' => 'root',
+    'password' => '',
+    'charset' => 'utf8mb4'
+];
+```
 
-فایل‌های حساس در .gitignore
+---
 
-<p align="center"> <sub>ساخته شده در یاسوج، ایران</sub> </p> ```
-````
+## مرحله ۳: ثبت توکن API
+
+```sql
+UPDATE settings
+SET value = 'YOUR_API_TOKEN'
+WHERE name = 'workers_ai_token';
+```
+
+---
+
+## مرحله ۴: بارگذاری روی Apache
+
+کل پروژه را در مسیر DocumentRoot وب‌سرور Apache قرار دهید و سپس سرویس Apache و MySQL را راه‌اندازی کنید.
+
+---
+
+# ساختار پروژه
+
+```text
+golestan-platform/
+├── assets/
+│   ├── css/
+│   ├── js/
+│   ├── icons/
+│   └── images/
+├── config/
+│   └── database.php
+├── modules/
+│   ├── ai/
+│   ├── crm/
+│   ├── shop/
+│   ├── kanban/
+│   ├── calendar/
+│   └── voice/
+├── api/
+├── uploads/
+├── vendor/
+├── index.php
+├── manifest.json
+├── service-worker.js
+└── README.md
+```
+
+---
+
+# امنیت
+
+| بخش                      | وضعیت                  |
+| ------------------------ | ---------------------- |
+| اعتبارسنجی ورودی‌ها      | ✅                     |
+| جلوگیری از SQL Injection | ✅ Prepared Statements |
+| جلوگیری از XSS           | ✅ Escape Output       |
+| احراز هویت کاربران       | ✅                     |
+| مدیریت نشست‌ها           | ✅ Secure Session      |
+| محافظت از API Token      | ✅                     |
+| HTTPS پیشنهادی           | ✅                     |
+| سطح دسترسی کاربران       | ✅ Role-Based Access   |
+
+---
+
+<div align="center">
+
+### ساخته شده در یاسوج، ایران 🇮🇷
+
+</div>
